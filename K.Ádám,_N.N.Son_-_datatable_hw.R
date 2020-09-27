@@ -8,6 +8,7 @@
 #EDA
 
 library(data.table)
+library(ggplot2)
 
 setwd("F:\\Dropbox\\!ELTECON BA (18'-21')\\5th Semester (39 credits)\\Data Science (Regional Economics)\\hw")
 dt = fread("All World Cup team summary stats.csv")
@@ -70,12 +71,51 @@ fixIsoCode(dt)
 
 #final cleaned datatable
 View(dt)
+  
+##########################
+# ggplot hw
+# Date Created 24-09-2020
+#########################
+
+# make sure to run the EDA part!
+
+#Task 1
+#create continuous variable:
+dt$conversion_rate = dt$goals_for/dt$shots_on_goal
+
+ggplot(aes(conversion_rate), data = dt) +
+  geom_histogram(binwidth = 0.4) +
+  geom_vline(xintercept = mean(dt$conversion_rate, na.rm = TRUE), color = 'red', linetype = "dashed") +
+  labs(title = "Distribution of conversion rate",
+       x = "Conversion rate",
+       y = "Frequency")
+
+#Task 2
+cr_plot = ggplot(aes(shots_on_goal, goals_for), data = dt) +
+  geom_jitter() + 
+  geom_smooth(method = 'lm') +
+  coord_cartesian(xlim = c(0,20), ylim = c(0, 10))
+
+#Task 3
+savePlot = function(x){
+  if (class(x) %in% c("gg","ggplot")){
+    ggsave("conversion_rate_plot.png", 
+           x,
+           path = "F:\\Dropbox\\!ELTECON BA (18'-21')\\5th Semester (39 credits)\\Data Science (Regional Economics)\\hw")
+    return(x)
+  }
+  else
+    stop("Class of object is invalid! Try gg or ggplot type.")
+}
+
+savePlot(cr_plot)
+
+#Task 4
+ggplot(aes(shots_on_goal, goals_for), data = dt) +
+  geom_bin2d(bins = 15)
 
 #############
-#DATAVIZ PART 1 and 2
-
-#ggplot
-library(ggplot2)
+#DATAVIZ PART 1 and 2 during the class
 
 ggplot(data = dt) +
   geom_histogram(aes(goals_for), fill = 'blue', binwidth = 3) +
@@ -103,7 +143,7 @@ ggplot(data = dt) +
        ylab = "Goals scored",
        color = "Won matches") +
   coord_cartesian(xlim = c(0,20), ylim = c(0, 10))
-  
+
 ggplot(data = dt) +
   geom_point(aes(shots_on_goal, goals_for), alpha = 0.3) +
   facet_wrap(~ won)
@@ -113,46 +153,6 @@ ggplot(data = dt) +
   coord_flip() +
   scale_y_continuous(breaks = seq(0, 30, 5)) +
   scale_x_continuous(labels = function(x){paste(x, "$")})
-  
-##########################
-# ggplot hw
-# Date Created 24-09-2020
-#########################
-
-# make sure to run the EDA part!
-
-#Task 1
-#create continuous variable:
-dt$conversion_rate = dt$goals_for/dt$shots_on_goal
-
-ggplot(aes(conversion_rate), data = dt) +
-  geom_histogram(binwidth = 0.4) +
-  geom_vline(xintercept = mean(dt$conversion_rate, na.rm = TRUE), color = 'red', linetype = "dashed") +
-  labs(title = "Distribution of conversion rate", x = "Conversion rate", y = "Frequency")
-
-#Task 2
-cr_plot = ggplot(aes(shots_on_goal, goals_for), data = dt) +
-  geom_jitter() + 
-  geom_smooth(method = 'lm') +
-  coord_cartesian(xlim = c(0,20), ylim = c(0, 10))
-
-#Task 3
-savePlot = function(x){
-  if (class(x) %in% c("gg","ggplot")){
-    ggsave("conversion_rate_plot.png", 
-           x,
-           path = "F:\\Dropbox\\!ELTECON BA (18'-21')\\5th Semester (39 credits)\\Data Science (Regional Economics)\\hw")
-    return(x)
-  }
-  else
-    stop("Class of object is invalid! Try gg or ggplot type.")
-}
-
-savePlot(cr_plot)
-
-#Task 4
-ggplot(aes(shots_on_goal, goals_for), data = dt) +
-  geom_bin2d(bins = 15)
 
 ###########  
 #END OF CODE
