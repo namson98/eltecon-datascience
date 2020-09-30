@@ -154,6 +154,42 @@ ggplot(data = dt) +
   scale_y_continuous(breaks = seq(0, 30, 5)) +
   scale_x_continuous(labels = function(x){paste(x, "$")})
 
+
+# Class 4 -----------------------------------------------------------------
+library("patchwork")
+
+p = ggplot(aes(year, conversion_rate, group = 1, color = factor(ISO_code)), data = dt) +
+        geom_line() +
+        theme_grey() +
+        scale_fill_brewer(palette = "YlOrRd", labels = seq(1:length(unique(dt$ISO_code))))
+pg = ggplot_build(p)
+head(pg$data[[1]], 6)
+
+extendPlot = function(plot,x,y, ttl = "Extended plot", sub = "Subtitle"){
+  plot + 
+    coord_cartesian(xlim = x, ylim = y) +
+    labs(title = ttl,
+         subtitle = sub)
+}
+
+cr_plot = ggplot(aes(shots_on_goal, goals_for), data = dt) +
+  geom_jitter() + 
+  geom_smooth(method = 'lm') +
+  coord_cartesian(xlim = c(0,20), ylim = c(0, 10))
+
+pg + cr_plot
+
+histplot = function(data, var){
+  p = ggplot(aes(var), data = data) +
+        geom_histogram()
+  pg = ggplot_build(p)
+  p + labs(subtitle = if (max(pg$data[[1]][3], na.rm = TRUE) > 40){
+                          return("The plot range is above 40")
+                      }
+                      else{
+                          return("The plot range is below 40")
+                      })
+}
 ###########  
 #END OF CODE
 ###########
