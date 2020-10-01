@@ -1,0 +1,94 @@
+---
+title: "Week 4 - Data Viz - Homework"
+author: "Kovács Ádám József (FRBICG), Nguyen Nam Son (GES0XD)"
+date: "10/01/2020"
+output: html_document
+---
+
+<br>
+
+```{r loading data, warning=FALSE, message=FALSE}
+library(data.table)
+library(ggplot2)
+library(dplyr)
+library(plotly)
+library(ggthemes)
+
+wd = file.path("~", "eltecon-datascience")
+setwd(wd)
+
+wc = fread("wc_summary_cleaned.csv")
+head(wc)
+```
+
+***
+<br>
+
+# First person's plots
+
+<br>
+
+```{r 1st plot, message=FALSE}
+
+ggplot(aes(shots_on_goal + shots_wide, goals_for), data = wc) +
+    geom_point(alpha = 0.3) +
+    geom_smooth(method = "lm", se = FALSE, color = "red", linetype = "dashed") +
+    labs(title = "Does more shots come with more goals? ",
+          subtitle = "Data of the Football World Cups between 1930 and 2006",
+          caption = "datasource: Github: jokecamp/FootballData/World Cups/All World Cup team summary stats.csv.",
+          x = "Total shots (on and off target)",
+          y = "Goals scored") +
+    theme_stata() +scale_colour_stata()
+
+```
+
+<br>
+
+Write down your feedback on the first plot here!
+
+<br>
+
+```{r 1st plot amended}
+# put your amended first plot here
+```
+
+***
+<br>
+
+```{r 2nd plot, message=FALSE}
+
+wc %>%
+  group_by(team) %>%
+  summarize(goals_for = sum(goals_for)) %>%
+  arrange(desc(goals_for)) %>%
+  slice(1:5) %>%
+  ggplot(., aes(reorder(team, goals_for, sum), goals_for)) +
+    geom_col(fill = "red") +
+    labs(title = "Who has the most goals ever?",
+         subtitle = "Teams with the most World Cups goals between 1930 and 2006",
+         caption = "datasource: Github: jokecamp/FootballData/World Cups/All World Cup team summary stats.csv.",
+         x = element_blank(),
+         y = "Total goals scored") +
+  coord_flip() +
+  theme_economist()
+
+```
+
+<br>
+
+Write down your feedback on the second plot here!
+
+<br>
+
+```{r 2nd plot amended}
+# put your amended second plot here
+```
+
+***
+<br>
+
+# Second person's plots
+
+<br>
+
+`<COMPLETE THE REST BY YOURSELF FOLLOWING THE ABOVE>`
