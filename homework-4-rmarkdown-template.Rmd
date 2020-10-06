@@ -190,7 +190,7 @@ p2 <- wc %>% group_by(team) %>% summarize(goal_difference = sum(goals_for - goal
     geom_col(fill = "red") +
     labs(x = element_blank(),
          y = element_blank()) +
-  theme_classic() + coord_cartesian(ylim = c(-115, 0))
+  theme_classic() + coord_cartesian(ylim = c(-115, 0)) + scale_x_discrete(position = "top") 
                                     
 grid.arrange(p1,p2, ncol = 1, top = textGrob("All time best and worst goal differences", gp = gpar(fontsize=16,font=1)), left = "Goal difference", bottom = textGrob("Teams with the best and worst World Cup goal differences between 1930 and 2006\nData source: jokecamp/FootballData/World Cups/All World Cup team summary stats.csv.", gp = gpar(fontsize=8,font=3)))
 
