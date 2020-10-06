@@ -121,8 +121,8 @@ ggplot(aes(goals_for - goals_against, won), data = wc) +
 I think that the plot perfectly conveys the positive relationship between the two variable. However I would have chosen a darker color for the observation points, also displaying the standard error in your regression line is irrelevant to the message and can make the plot cluttered. Finally, even though you indicated the names of the axes on your plot, I cannot see them on the output due to your themes choice which hides them, therefore it is not clear which axis is which variable.
 
 To be done: 
-  Darken to color of observation points
-  Disable standard error in linear method
+  Darken to color of observation points,
+  Disable standard error in linear method,
   Display axis names / change theme
 
 <br>
@@ -171,8 +171,8 @@ p1 / p2 + plot_annotation(title = "All time best and worst goal differences",
 It is a very nice information to share with the reader and it is a well-made, simple plot. Although what is need to be changed is the scaling of the graphs since with the current scaling, the magnitude of negative goal difference for Mexico seems larger than that of the positive goal difference for Italy, but in fact it is the other way around! The same applies for the other countries because a bin on the above graph accounts for 30 units which has the same (or smaller width) compared to that of the below graph which accounts for 10 units. Also I would display the name of the y-axis once because it is the same for both graphs. One more minor change I would make is that both fillings are shade of warmer colors which shifts the attention to the below graph, therefore I would assign a color to the above graph which is associated with positivism and can be distinguished from the tones of the red-ish color.
 
 To be done:
-  Uniform scaling for both graphs
-  Display the name of y-axis only once
+  Uniform scaling for both graphs,
+  Display the name of y-axis only once,
   Change the color of the above graph to make it more distinguishable
 
 <br>
