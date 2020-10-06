@@ -18,7 +18,6 @@ library(patchwork)
 
 wd = file.path("~", "eltecon-datascience")
 setwd(wd)
-#setwd("C:\\ELTECON\\eltecon-ds")
 
 wc = fread("wc_summary_cleaned.csv")
 head(wc)
@@ -51,13 +50,22 @@ Write down your feedback on the first plot here!
 
 Nice plot! I like the contrast with the red and black color, the theme and the information written on the axis and the message you are trying to transmit is clear. 
 
-To be done: 
-I would suggest to lower the transmittance, as there are not so many observations and the single values are not so well visible like this (they are too pale). Also, a linear model may not be the best fit here for the regression line, it does not seem to capture the relationship well.
+To improve the plot, I would suggest to lower the transmittance, as there are not so many observations and the single values are not so visible like this (they are too pale). Also, a linear model may not be the best fit here for the regression line, it does not seem to capture the relationship well. Adding the standard errors as well can transmit even more information. In the title, I would put the question in the opposite order, since 'Goals scored' is on the y axis. Finally, in the caption, 'Data source' with capital D.
 
 <br>
 
 ```{r 1st plot amended by P2}
-# put your amended first plot here
+
+ggplot(aes(shots_on_goal + shots_wide, goals_for), data = wc) +
+    geom_point(alpha = 0.6) +
+    geom_smooth(method = "auto", se = TRUE, color = "red", linetype = "dashed") +
+    labs(title = "Do more goals come with more shots? ",
+          subtitle = "Data of the Football World Cups between 1930 and 2006",
+          caption = "Data source: Github: jokecamp/FootballData/World Cups/All World Cup team summary stats.csv.",
+          x = "Total shots (on and off target)",
+          y = "Goals scored") +
+    theme_stata() +scale_colour_stata()
+
 ```
 
 ***
@@ -86,12 +94,29 @@ wc %>%
 
 Write down your feedback on the second plot here!
 
-This is a great plot! The theme looks great, the information provided is informative, and the message is very clear. I can't think of anything that could make it better, please come up with sg on your own :D
+This is a great plot! The theme looks great, there is a good contrast between colors, the information provided is informative, and the message is very clear. 
+
+On the y axis, however the label Teams is positioned such that Italy is hardly visible, so I would suggest removing that label and rather putting in the title that we are considering teams.Also, using 'ever' in the title cannot be correct, if it stands in the subtitle that data is only from 1930 to 2006 and there were World Cups organized before as well. Finally, in the caption, 'Data source' with capital D again.
 
 <br>
 
 ```{r 2nd plot amended by P2}
-# put your amended second plot here
+
+wc %>%
+  group_by(team) %>%
+  summarize(goals_for = sum(goals_for)) %>%
+  arrange(desc(goals_for)) %>%
+  slice(1:5) %>%
+  ggplot(., aes(reorder(team, goals_for, sum), goals_for)) +
+    geom_col(fill = "red") +
+    labs(title = "Which national teams have the most goals?",
+         subtitle = "Top 5 in most Football World Cups goals between 1930 and 2006",
+         caption = "Data source: Github: jokecamp/FootballData/World Cups/All World Cup team summary stats.csv.",
+         x = element_blank(),
+         y = "Total goals scored") +
+  coord_flip() +
+  theme_economist()
+
 ```
 
 ***
