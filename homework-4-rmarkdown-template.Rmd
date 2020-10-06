@@ -12,9 +12,13 @@ library(data.table)
 library(ggplot2)
 library(dplyr)
 library(ggthemes)
+library(gridExtra)
+library(grid)
+library(patchwork)
 
 wd = file.path("~", "eltecon-datascience")
 setwd(wd)
+#setwd("C:\\ELTECON\\eltecon-ds")
 
 wc = fread("wc_summary_cleaned.csv")
 head(wc)
@@ -27,7 +31,7 @@ head(wc)
 
 <br>
 
-```{r 1st plot, message=FALSE}
+```{r 1st plot of P1, message=FALSE}
 
 ggplot(aes(shots_on_goal + shots_wide, goals_for), data = wc) +
     geom_point(alpha = 0.3) +
@@ -45,16 +49,21 @@ ggplot(aes(shots_on_goal + shots_wide, goals_for), data = wc) +
 
 Write down your feedback on the first plot here!
 
+Nice plot! I like the contrast with the red and black color, the theme and the information written on the axis and the message you are trying to transmit is clear. 
+
+To be done: 
+I would suggest to lower the transmittance, as there are not so many observations and the single values are not so well visible like this (they are too pale). Also, a linear model may not be the best fit here for the regression line, it does not seem to capture the relationship well.
+
 <br>
 
-```{r 1st plot amended}
+```{r 1st plot amended by P2}
 # put your amended first plot here
 ```
 
 ***
 <br>
 
-```{r 2nd plot, message=FALSE}
+```{r 2nd plot of P1, message=FALSE}
 
 wc %>%
   group_by(team) %>%
@@ -66,7 +75,7 @@ wc %>%
     labs(title = "Who has the most goals ever?",
          subtitle = "Teams with the most World Cups goals between 1930 and 2006",
          caption = "datasource: Github: jokecamp/FootballData/World Cups/All World Cup team summary stats.csv.",
-         x = element_blank(),
+         x = "Teams",
          y = "Total goals scored") +
   coord_flip() +
   theme_economist()
@@ -77,9 +86,11 @@ wc %>%
 
 Write down your feedback on the second plot here!
 
+This is a great plot! The theme looks great, the information provided is informative, and the message is very clear. I can't think of anything that could make it better, please come up with sg on your own :D
+
 <br>
 
-```{r 2nd plot amended}
+```{r 2nd plot amended by P2}
 # put your amended second plot here
 ```
 
@@ -90,4 +101,100 @@ Write down your feedback on the second plot here!
 
 <br>
 
-`<COMPLETE THE REST BY YOURSELF FOLLOWING THE ABOVE>`
+```{r 1st plot of P2, message=FALSE}
+
+ggplot(aes(goals_for - goals_against, won), data = wc) + 
+  geom_point(color = 'orange') + 
+  geom_smooth(method = "lm", se = TRUE, color = "blue", linetype = "twodash") +
+    labs(title = "Do teams with better goal difference win more matches?",
+          subtitle = "Analysis on national team performances on Footbal World Cups from 1930 to 2006",
+          caption = "Data source: jokecamp/FootballData/World Cups/All World Cup team summary stats.csv.",
+          x = "Goal difference (goals scored - goals conceded)",
+          y = "Number of matches won")  +
+    theme_fivethirtyeight() +scale_colour_fivethirtyeight() +
+    coord_cartesian(ylim = c(0,7)) 
+
+```
+
+<br>
+
+I think that the plot perfectly conveys the positive relationship between the two variable. However I would have chosen a darker color for the observation points, also displaying the standard error in your regression line is irrelevant to the message and can make the plot cluttered. Finally, even though you indicated the names of the axes on your plot, I cannot see them on the output due to your themes choice which hides them, therefore it is not clear which axis is which variable.
+
+To be done: 
+  Darken to color of observation points
+  Disable standard error in linear method
+  Display axis names / change theme
+
+<br>
+
+```{r 1st plot amended by P1, message=FALSE}
+
+ggplot(aes(goals_for - goals_against, won), data = wc) + 
+  geom_point(color = 'red') + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue", linetype = "twodash") +
+    labs(title = "Do teams with better goal difference win more matches?",
+          subtitle = "Analysis on national team performances on Footbal World Cups from 1930 to 2006",
+          caption = "Data source: jokecamp/FootballData/World Cups/All World Cup team summary stats.csv.",
+          x = "Goal difference (goals scored - goals conceded)",
+          y = "Number of matches won")  +
+    theme_igray() +
+    coord_cartesian(ylim = c(0,7)) 
+
+```
+
+***
+<br>
+
+```{r 2nd plot of P2, message=FALSE}
+
+p1 <- wc %>% group_by(team) %>% summarize(goal_difference = sum(goals_for - goals_against)) %>% 
+  arrange(desc(goal_difference)) %>%  slice(1:3) %>% ggplot(., aes(reorder(team, goal_difference, sum), goal_difference)) +
+    geom_col(fill = "gold") +
+    labs(x = element_blank(),
+         y = "Goal difference") +
+  theme_classic()
+p2 <- wc %>% group_by(team) %>% summarize(goal_difference = sum(goals_for - goals_against)) %>% 
+  arrange(goal_difference) %>%  slice(1:3) %>% ggplot(., aes(reorder(team, goal_difference, sum), goal_difference)) +
+    geom_col(fill = "brown") +
+    labs(x = element_blank(),
+         y = "Goal difference") +
+  theme_classic()
+
+#grid.arrange(p1, p2, nrow = 1) 
+p1 / p2 + plot_annotation(title = "All time best and worst goal differences",
+         subtitle = "Teams with the best and worst World Cup goal differences between 1930 and 2006",
+         caption = "Data source: jokecamp/FootballData/World Cups/All World Cup team summary stats.csv.")
+```
+
+<br>
+
+It is a very nice information to share with the reader and it is a well-made, simple plot. Although what is need to be changed is the scaling of the graphs since with the current scaling, the magnitude of negative goal difference for Mexico seems larger than that of the positive goal difference for Italy, but in fact it is the other way around! The same applies for the other countries because a bin on the above graph accounts for 30 units which has the same (or smaller width) compared to that of the below graph which accounts for 10 units. Also I would display the name of the y-axis once because it is the same for both graphs. One more minor change I would make is that both fillings are shade of warmer colors which shifts the attention to the below graph, therefore I would assign a color to the above graph which is associated with positivism and can be distinguished from the tones of the red-ish color.
+
+To be done:
+  Uniform scaling for both graphs
+  Display the name of y-axis only once
+  Change the color of the above graph to make it more distinguishable
+
+<br>
+
+```{r 2nd plot amended by P1, message=FALSE}
+
+p1 <- wc %>% group_by(team) %>% summarize(goal_difference = sum(goals_for - goals_against)) %>% 
+  arrange(desc(goal_difference)) %>%  slice(1:3) %>% ggplot(., aes(reorder(team, goal_difference, sum), goal_difference)) +
+    geom_col(fill = "green") +
+    labs(x = element_blank(),
+         y = element_blank()) +
+  theme_classic()
+p2 <- wc %>% group_by(team) %>% summarize(goal_difference = sum(goals_for - goals_against)) %>% 
+  arrange(goal_difference) %>%  slice(1:3) %>% ggplot(., aes(reorder(team, goal_difference, sum), goal_difference)) +
+    geom_col(fill = "red") +
+    labs(x = element_blank(),
+         y = element_blank()) +
+  theme_classic() + coord_cartesian(ylim = c(-115, 0))
+                                    
+grid.arrange(p1,p2, ncol = 1, top = textGrob("All time best and worst goal differences", gp = gpar(fontsize=16,font=1)), left = "Goal difference", bottom = textGrob("Teams with the best and worst World Cup goal differences between 1930 and 2006\nData source: jokecamp/FootballData/World Cups/All World Cup team summary stats.csv.", gp = gpar(fontsize=8,font=3)))
+
+```
+
+***
+<br>
