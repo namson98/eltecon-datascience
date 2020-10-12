@@ -10,6 +10,7 @@
 library(data.table)
 library(ggplot2)
 
+file.path()
 setwd("F:\\Dropbox\\!ELTECON BA (18'-21')\\5th Semester (39 credits)\\Data Science (Regional Economics)\\hw")
 dt = fread("All World Cup team summary stats.csv")
 
@@ -69,9 +70,22 @@ fixIsoCode = function(dt) {
 
 fixIsoCode(dt)
 
+dt$conversion_rate = dt$goals_for/dt$shots_on_goal
+dt$win_rate = dt$won/dt$nmatches
+dt$shot_accuracy = dt$shots_on_goal/(dt$shots_on_goal+dt$shots_wide)
+
+# replace the NA caused by 0/0
+
+ZeroOZero = function(dt){
+  dt[is.na(conversion_rate), conversion_rate := 0]
+  dt[is.na(shot_accuracy), shot_accuracy  := 0]
+}
+
+ZeroOZero(dt)
+
 #final cleaned datatable
 View(dt)
-  
+write.csv(dt, "F:\\Dropbox\\!ELTECON BA (18'-21')\\5th Semester (39 credits)\\Data Science (Regional Economics)\\hw\\wc_summary_cleaned.csv")
 ##########################
 # ggplot hw
 # Date Created 24-09-2020
@@ -156,12 +170,20 @@ ggplot(data = dt) +
 
 
 # Class 4 -----------------------------------------------------------------
-library("patchwork")
+library(patchwork)
+library(data.table)
+library(ggplot2)
+library(dplyr)
 
-p = ggplot(aes(year, conversion_rate, group = 1, color = factor(ISO_code)), data = dt) +
+wd = file.path("~", "eltecon-datascience")
+setwd(wd)
+
+wc = fread("wc_summary_cleaned.csv")
+
+p = ggplot(aes(year, conversion_rate, group = 1, color = factor(ISO_code)), data = wc) +
         geom_line() +
         theme_grey() +
-        scale_fill_brewer(palette = "YlOrRd", labels = seq(1:length(unique(dt$ISO_code))))
+        scale_fill_brewer(palette = "YlOrRd", labels = seq(1:length(unique(dt$ISO_code)))) 
 pg = ggplot_build(p)
 head(pg$data[[1]], 6)
 
@@ -172,23 +194,27 @@ extendPlot = function(plot,x,y, ttl = "Extended plot", sub = "Subtitle"){
          subtitle = sub)
 }
 
-cr_plot = ggplot(aes(shots_on_goal, goals_for), data = dt) +
+cr_plot = ggplot(aes(shots_on_goal, goals_for), data = wc) +
   geom_jitter() + 
   geom_smooth(method = 'lm') +
   coord_cartesian(xlim = c(0,20), ylim = c(0, 10))
 
-pg + cr_plot
+p + cr_plot
 
-histplot = function(data, var){
-  p = ggplot(aes(var), data = data) +
-        geom_histogram()
-  pg = ggplot_build(p)
-  p + labs(subtitle = if (max(pg$data[[1]][3], na.rm = TRUE) > 40){
-                          return("The plot range is above 40")
-                      }
-                      else{
-                          return("The plot range is below 40")
-                      })
+histplot = function(data, var, rangex, rangey){
+  p <<- ggplot(aes_string(var), data = data) +
+        geom_histogram() +
+        coord_cartesian(xlim = rangex, ylim = rangey)
+  
+  if(max(p$coordinates$limits$x, na.rm = TRUE) > 40 | max(p$coordinates$limits$y, na.rm = TRUE) > 40){
+                  a = "The plot range is above 40"
+                } else{
+                  a = "The plot range is below 40"
+                }
+  
+  pg = p + labs(subtitle = a)
+  
+  return(pg)
 }
 ###########  
 #END OF CODE

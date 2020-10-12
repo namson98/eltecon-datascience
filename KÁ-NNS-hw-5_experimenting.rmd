@@ -1,0 +1,250 @@
+---
+title: "Week 5 - Experimenting - Homework"
+author: "Kovács Ádám József. Nguyen Nam Son"
+date: "08/10/2020"
+output: html_document
+---
+
+<br>
+
+## Loading the data...
+
+```{r setup, message = FALSE, warning = FALSE}
+
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(scales)
+
+wd = file.path("~", "eltecon-datascience")
+setwd(wd)
+
+xp = fread("experiment_result_HW.csv")
+
+```
+
+<br>
+
+## Calculating the uplift for first KPI
+
+```{r uplift1, message = FALSE, warning = FALSE}
+# calculating uplift for 1st
+view_rate_xp1 = xp[period == "first period"] %>% .[, .(view_rate = sum(has_viewed_website) / .N), by = group]
+dcast(view_rate_xp1, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the first period is",percent(.))
+                                
+# for second
+view_rate_xp2 = xp[period == "second period"] %>% .[, .(view_rate = sum(has_viewed_website) / .N), by = group]
+dcast(view_rate_xp2, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the second period is",percent(.))
+
+#for full period
+view_rate_f = xp[, .(view_rate = sum(has_viewed_website) / .N), by = group]
+dcast(view_rate_f, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the full period is",percent(.))
+
+xpn = xp[, .(.N, mean(has_viewed_website)), keyby = .(period, group)]
+xp[, .(.N, mean(has_viewed_website)), group]
+```
+<br>
+
+## Plot the sample sizes in each period
+
+```{r size1, message = FALSE, warning = FALSE}
+
+ggplot(aes(period, N, fill = group), data = xpn) +
+  geom_col(position = "dodge") +
+  labs(title = "Sample size distribution across periods",
+       subtitle = "The treatment group is underrepresented in the first period.",
+       caption = "Made by Á.Kovács and S.N.Nguyen",
+       x = element_blank(),
+       y = "Number of contacted people") +
+  theme_classic() +
+  geom_label(aes(label = N), vjust = 2.5, position = position_dodge(0.9), color = "white", fontface = "bold", size = 4, show.legend = FALSE)
+
+```
+<br>
+
+## Recalculate the weighted uplifts
+
+```{r weighted uplift1, message = FALSE, warning = FALSE}
+# calculating weighted uplift for 1st
+
+KPIt1 = xpn$V2[2]*100000
+KPIc1 = xpn$V2[1]*100000
+
+paste("The weighted uplift for the first period is", percent(KPIt1 / KPIc1 - 1))
+
+# for second
+KPIt1 = xpn$V2[4]*100000
+KPIc1 = xpn$V2[3]*100000
+
+paste("The weighted uplift for the second period is", percent(KPIt1 / KPIc1 - 1))
+
+#for full period
+KPIt = (xpn$V2[2]*100000 + xpn$V2[4]*100000)
+KPIc = (xpn$V2[1]*100000 + xpn$V2[3]*100000)
+
+paste("The weighted uplift for the full period is", percent(KPIt / KPIc - 1))
+
+```
+<br>
+
+## Plot KPIs over period
+
+```{r over1, message = FALSE, warning = FALSE}
+
+ggplot(aes(period, V2, fill = group),data = xpn) +
+  geom_col(position = "dodge") +
+  labs(title = "KPIs across periods",
+       subtitle = "The view rate in each period for each group",
+       caption = "Made by Á.Kovács and S.N.Nguyen",
+       x = element_blank(),
+       y = "Share of contacts with views") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_classic() +
+  geom_label(aes(label = percent(V2)), vjust = 2.5, position = position_dodge(0.9), color = "white", fontface = "bold", size = 4, show.legend = FALSE)
+
+```
+<br>
+
+## Plot the KPIs for the full period
+
+```{r full1, message = FALSE, warning = FALSE}
+
+ggplot(aes(group, view_rate, fill = group),data = view_rate_f) +
+  geom_col(show.legend = FALSE) +
+  labs(title = "KPIs for full period",
+    subtitle = paste("The weighted uplift for the whole period is", percent((KPIt / KPIc - 1))),
+    caption = "Made by Á.Kovács and S.N.Nguyen",
+    x = element_blank(),
+    y = "Share of contacts with views") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_classic() +
+  geom_label(aes(label = percent(view_rate)), vjust = 2.5, position = position_dodge(0.9), color = "white", fontface = "bold", size = 4, show.legend = FALSE)
+
+```
+<br>
+
+## Calculating the uplift for second KPI
+
+```{r uplift2, message = FALSE, warning = FALSE}
+# calculating uplift for 1st
+item_rate_xp1 = xp[period == "first period"] %>% .[, .(item_rate = sum(num_items_ordered) / .N), by = group]
+dcast(item_rate_xp1, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the first period is",percent(.))
+                                
+# for second
+item_rate_xp2 = xp[period == "second period"] %>% .[, .(item_rate = sum(num_items_ordered) / .N), by = group]
+dcast(item_rate_xp2, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the second period is",percent(.))
+
+#for full period
+item_rate_f = xp[, .(item_rate = sum(num_items_ordered) / .N), by = group]
+dcast(item_rate_f, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the full period is",percent(.))
+
+xpm = xp[, .(.N, mean(num_items_ordered)), keyby = .(period, group)]
+xp[, .(.N, mean(num_items_ordered)), group]
+```
+<br>
+
+## Recalculate the weighted uplifts
+
+```{r weighted uplift2, message = FALSE, warning = FALSE}
+# calculating weighted uplift for 1st
+
+KPIt1 = xpm$V2[2]*100000
+KPIc1 = xpm$V2[1]*100000
+
+paste("The weighted uplift for the first period is", percent(KPIt1 / KPIc1 - 1))
+
+# for second
+KPIt1 = xpm$V2[4]*100000
+KPIc1 = xpm$V2[3]*100000
+
+paste("The weighted uplift for the second period is", percent(KPIt1 / KPIc1 - 1))
+
+#for full period
+KPIt = (xpm$V2[2]*100000 + xpm$V2[4]*100000)
+KPIc = (xpm$V2[1]*100000 + xpm$V2[3]*100000)
+
+paste("The weighted uplift for the full period is", percent(KPIt / KPIc - 1))
+
+```
+
+<br>
+
+## Plot the KPIs for the full period
+
+```{r full2, message = FALSE, warning = FALSE}
+
+ggplot(aes(group, item_rate, fill = group),data = item_rate_f) +
+  geom_col(show.legend = FALSE) +
+  labs(title = "KPIs for full period",
+    subtitle = paste("The weighted uplift for the whole period is", percent((KPIt / KPIc - 1))),
+    caption = "Made by Á.Kovács and S.N.Nguyen",
+    x = element_blank(),
+    y = "Average number of items ordered per person") +
+    theme_classic() +
+  geom_label(aes(label = round(item_rate ,3)), vjust = 2.5, position = position_dodge(0.9), color = "white", fontface = "bold", size = 4, show.legend = FALSE)
+
+```
+
+<br>
+
+## Calculating the uplift for second KPI
+
+```{r uplift3, message = FALSE, warning = FALSE}
+# calculating uplift for 1st
+sales_rate_xp1 = xp[period == "first period"] %>% .[, .(sales_rate = sum(sales_amount) / .N), by = group]
+dcast(sales_rate_xp1, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the first period is",percent(.))
+                                
+# for second
+sales_rate_xp2 = xp[period == "second period"] %>% .[, .(sales_rate = sum(sales_amount) / .N), by = group]
+dcast(sales_rate_xp2, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the second period is",percent(.))
+
+#for full period
+sales_rate_f = xp[, .(sales_rate = sum(sales_amount) / .N), by = group]
+dcast(sales_rate_f, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the full period is",percent(.))
+
+xpo = xp[, .(.N, mean(sales_amount)), keyby = .(period, group)]
+xp[, .(.N, mean(num_items_ordered)), group]
+```
+<br>
+
+## Recalculate the weighted uplifts
+
+```{r weighted uplift3, message = FALSE, warning = FALSE}
+# calculating weighted uplift for 1st
+
+KPIt1 = xpo$V2[2]*100000
+KPIc1 = xpo$V2[1]*100000
+
+paste("The weighted uplift for the first period is", percent(KPIt1 / KPIc1 - 1))
+
+# for second
+KPIt1 = xpo$V2[4]*100000
+KPIc1 = xpo$V2[3]*100000
+
+paste("The weighted uplift for the second period is", percent(KPIt1 / KPIc1 - 1))
+
+#for full period
+KPIt = (xpo$V2[2]*100000 + xpo$V2[4]*100000)
+KPIc = (xpo$V2[1]*100000 + xpo$V2[3]*100000)
+
+paste("The weighted uplift for the full period is", percent(KPIt / KPIc - 1))
+
+```
+<br>
+
+## Plot the KPIs for the full period
+
+```{r full3, message = FALSE, warning = FALSE}
+
+ggplot(aes(group, sales_rate, fill = group),data = sales_rate_f) +
+  geom_col(show.legend = FALSE) +
+  labs(title = "KPIs for full period",
+    subtitle = paste("The weighted uplift for the whole period is", percent((KPIt / KPIc - 1))),
+    caption = "Made by Á.Kovács and S.N.Nguyen",
+    x = element_blank(),
+    y = "Average sales per person") +
+    theme_classic() +
+  geom_label(aes(label = round(sales_rate ,3)), vjust = 2.5, position = position_dodge(0.9), color = "white", fontface = "bold", size = 4, show.legend = FALSE)
+
+```
+***
