@@ -25,7 +25,7 @@ xp = fread("experiment_result_HW.csv")
 
 <br>
 
-## Calculating the uplift for first KPI
+## Calculating the uplift for KPI the view rate
 
 ```{r uplift1, message = FALSE, warning = FALSE}
 # calculating uplift for 1st
@@ -123,7 +123,7 @@ ggplot(aes(group, view_rate, fill = group),data = view_rate_f) +
 ```
 <br>
 
-## Calculating the uplift for second KPI
+## Calculating the uplift for the KPI of rate of items ordered 
 
 ```{r uplift2, message = FALSE, warning = FALSE}
 # calculating uplift for 1st
@@ -187,8 +187,8 @@ ggplot(aes(group, item_rate, fill = group),data = item_rate_f) +
 
 <br>
 
-## Calculating the uplift for second KPI
-
+## Calculating the uplift for KPI of sales amount rate
+ 
 ```{r uplift3, message = FALSE, warning = FALSE}
 # calculating uplift for 1st
 sales_rate_xp1 = xp[period == "first period"] %>% .[, .(sales_rate = sum(sales_amount) / .N), by = group]
@@ -247,4 +247,9 @@ ggplot(aes(group, sales_rate, fill = group),data = sales_rate_f) +
   geom_label(aes(label = round(sales_rate ,3)), vjust = 2.5, position = position_dodge(0.9), color = "white", fontface = "bold", size = 4, show.legend = FALSE)
 
 ```
+
+## Assessment
+
+
+
 ***
