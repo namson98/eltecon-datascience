@@ -16,10 +16,10 @@ library(magrittr)
 library(ggplot2)
 library(scales)
 
-wd = file.path("~", "eltecon-datascience")
+wd <- file.path("~", "eltecon-datascience")
 setwd(wd)
 
-xp = fread("experiment_result_HW.csv")
+xp <- fread("experiment_result_HW.csv")
 
 ```
 
@@ -29,18 +29,18 @@ xp = fread("experiment_result_HW.csv")
 
 ```{r uplift1, message = FALSE, warning = FALSE}
 # calculating uplift for 1st
-view_rate_xp1 = xp[period == "first period"] %>% .[, .(view_rate = sum(has_viewed_website) / .N), by = group]
+view_rate_xp1 <- xp[period == "first period"] %>% .[, .(view_rate = sum(has_viewed_website) / .N), by = group]
 dcast(view_rate_xp1, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the first period is",percent(.))
                                 
 # for second
-view_rate_xp2 = xp[period == "second period"] %>% .[, .(view_rate = sum(has_viewed_website) / .N), by = group]
+view_rate_xp2 <- xp[period == "second period"] %>% .[, .(view_rate = sum(has_viewed_website) / .N), by = group]
 dcast(view_rate_xp2, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the second period is",percent(.))
 
 #for full period
-view_rate_f = xp[, .(view_rate = sum(has_viewed_website) / .N), by = group]
+view_rate_f <- xp[, .(view_rate = sum(has_viewed_website) / .N), by = group]
 dcast(view_rate_f, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the full period is",percent(.))
 
-xpn = xp[, .(.N, mean(has_viewed_website)), keyby = .(period, group)]
+xpn <- xp[, .(.N, mean(has_viewed_website)), keyby = .(period, group)]
 xp[, .(.N, mean(has_viewed_website)), group]
 ```
 <br>
@@ -67,20 +67,20 @@ ggplot(aes(period, N, fill = group), data = xpn) +
 ```{r weighted uplift1, message = FALSE, warning = FALSE}
 # calculating weighted uplift for 1st
 
-KPIt1 = xpn$V2[2]*100000
-KPIc1 = xpn$V2[1]*100000
+KPIt1 <- xpn$V2[2]*100000
+KPIc1 <- xpn$V2[1]*100000
 
 paste("The weighted uplift for the first period is", percent(KPIt1 / KPIc1 - 1))
 
 # for second
-KPIt1 = xpn$V2[4]*100000
-KPIc1 = xpn$V2[3]*100000
+KPIt1 <- xpn$V2[4]*100000
+KPIc1 <- xpn$V2[3]*100000
 
 paste("The weighted uplift for the second period is", percent(KPIt1 / KPIc1 - 1))
 
 #for full period
-KPIt = (xpn$V2[2]*100000 + xpn$V2[4]*100000)
-KPIc = (xpn$V2[1]*100000 + xpn$V2[3]*100000)
+KPIt <- (xpn$V2[2]*100000 + xpn$V2[4]*100000)
+KPIc <- (xpn$V2[1]*100000 + xpn$V2[3]*100000)
 
 paste("The weighted uplift for the full period is", percent(KPIt / KPIc - 1))
 
@@ -127,18 +127,18 @@ ggplot(aes(group, view_rate, fill = group),data = view_rate_f) +
 
 ```{r uplift2, message = FALSE, warning = FALSE}
 # calculating uplift for 1st
-item_rate_xp1 = xp[period == "first period"] %>% .[, .(item_rate = sum(num_items_ordered) / .N), by = group]
+item_rate_xp1 <- xp[period == "first period"] %>% .[, .(item_rate = sum(num_items_ordered) / .N), by = group]
 dcast(item_rate_xp1, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the first period is",percent(.))
                                 
 # for second
-item_rate_xp2 = xp[period == "second period"] %>% .[, .(item_rate = sum(num_items_ordered) / .N), by = group]
+item_rate_xp2 <- xp[period == "second period"] %>% .[, .(item_rate = sum(num_items_ordered) / .N), by = group]
 dcast(item_rate_xp2, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the second period is",percent(.))
 
 #for full period
-item_rate_f = xp[, .(item_rate = sum(num_items_ordered) / .N), by = group]
+item_rate_f <- xp[, .(item_rate = sum(num_items_ordered) / .N), by = group]
 dcast(item_rate_f, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the full period is",percent(.))
 
-xpm = xp[, .(.N, mean(num_items_ordered)), keyby = .(period, group)]
+xpm <- xp[, .(.N, mean(num_items_ordered)), keyby = .(period, group)]
 xp[, .(.N, mean(num_items_ordered)), group]
 ```
 <br>
@@ -148,20 +148,20 @@ xp[, .(.N, mean(num_items_ordered)), group]
 ```{r weighted uplift2, message = FALSE, warning = FALSE}
 # calculating weighted uplift for 1st
 
-KPIt1 = xpm$V2[2]*100000
-KPIc1 = xpm$V2[1]*100000
+KPIt1 <- xpm$V2[2]*100000
+KPIc1 <- xpm$V2[1]*100000
 
 paste("The weighted uplift for the first period is", percent(KPIt1 / KPIc1 - 1))
 
 # for second
-KPIt1 = xpm$V2[4]*100000
-KPIc1 = xpm$V2[3]*100000
+KPIt1 <- xpm$V2[4]*100000
+KPIc1 <- xpm$V2[3]*100000
 
 paste("The weighted uplift for the second period is", percent(KPIt1 / KPIc1 - 1))
 
 #for full period
-KPIt = (xpm$V2[2]*100000 + xpm$V2[4]*100000)
-KPIc = (xpm$V2[1]*100000 + xpm$V2[3]*100000)
+KPIt <- (xpm$V2[2]*100000 + xpm$V2[4]*100000)
+KPIc <- (xpm$V2[1]*100000 + xpm$V2[3]*100000)
 
 paste("The weighted uplift for the full period is", percent(KPIt / KPIc - 1))
 
@@ -191,18 +191,18 @@ ggplot(aes(group, item_rate, fill = group),data = item_rate_f) +
  
 ```{r uplift3, message = FALSE, warning = FALSE}
 # calculating uplift for 1st
-sales_rate_xp1 = xp[period == "first period"] %>% .[, .(sales_rate = sum(sales_amount) / .N), by = group]
+sales_rate_xp1 <- xp[period == "first period"] %>% .[, .(sales_rate = sum(sales_amount) / .N), by = group]
 dcast(sales_rate_xp1, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the first period is",percent(.))
                                 
 # for second
-sales_rate_xp2 = xp[period == "second period"] %>% .[, .(sales_rate = sum(sales_amount) / .N), by = group]
+sales_rate_xp2 <- xp[period == "second period"] %>% .[, .(sales_rate = sum(sales_amount) / .N), by = group]
 dcast(sales_rate_xp2, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the second period is",percent(.))
 
 #for full period
-sales_rate_f = xp[, .(sales_rate = sum(sales_amount) / .N), by = group]
+sales_rate_f <- xp[, .(sales_rate = sum(sales_amount) / .N), by = group]
 dcast(sales_rate_f, .~group) %>% .[, (treatment / control) -1] %>% paste("The uplift for the full period is",percent(.))
 
-xpo = xp[, .(.N, mean(sales_amount)), keyby = .(period, group)]
+xpo <- xp[, .(.N, mean(sales_amount)), keyby = .(period, group)]
 xp[, .(.N, mean(num_items_ordered)), group]
 ```
 <br>
@@ -212,20 +212,20 @@ xp[, .(.N, mean(num_items_ordered)), group]
 ```{r weighted uplift3, message = FALSE, warning = FALSE}
 # calculating weighted uplift for 1st
 
-KPIt1 = xpo$V2[2]*100000
-KPIc1 = xpo$V2[1]*100000
+KPIt1 <- xpo$V2[2]*100000
+KPIc1 <- xpo$V2[1]*100000
 
 paste("The weighted uplift for the first period is", percent(KPIt1 / KPIc1 - 1))
 
 # for second
-KPIt1 = xpo$V2[4]*100000
-KPIc1 = xpo$V2[3]*100000
+KPIt1 <- xpo$V2[4]*100000
+KPIc1 <- xpo$V2[3]*100000
 
 paste("The weighted uplift for the second period is", percent(KPIt1 / KPIc1 - 1))
 
 #for full period
-KPIt = (xpo$V2[2]*100000 + xpo$V2[4]*100000)
-KPIc = (xpo$V2[1]*100000 + xpo$V2[3]*100000)
+KPIt <- (xpo$V2[2]*100000 + xpo$V2[4]*100000)
+KPIc <- (xpo$V2[1]*100000 + xpo$V2[3]*100000)
 
 paste("The weighted uplift for the full period is", percent(KPIt / KPIc - 1))
 
@@ -250,6 +250,12 @@ ggplot(aes(group, sales_rate, fill = group),data = sales_rate_f) +
 
 ## Assessment
 
+In order to measure the success of the experiment, we identified altogether three KPIs. 
+The first one was the share of users who viewed the advertisement. Based on this KPI, the weighted uplift of the treatment for the whole period was 12%. This means that receiving the treatment increased the share of people who viewed the product on average by 12% compared to those who didn't.
 
+The second was the average number of items ordered per person. The weighted uplift of the treatment for the whole period was 13%, which means that on average 13% more items were ordered over the full period by those who received the treatment compared to those who didn't.
 
+Finally, the average amount of sales per person was identified as another KPI. Based on this, the weighted uplift for the whole period is 22%, which means that those who got the treatment bought on average 22% more over the full period than those who did not.
+
+Altogether, the success of the experiment is evident, all three KPIs show the success of the treatment by having a positive uplift over the full period. Moreover, the treatment has the greatest effect on amount sold per person, which is obviously desireable from the perspective of the firm.
 ***
