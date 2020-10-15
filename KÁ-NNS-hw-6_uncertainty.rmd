@@ -1,0 +1,101 @@
+---
+title: "Week 6 - Uncertainty - Homework"
+author: "Kovács Ádám József, Nguyen Nam Son"
+period: "15/10/2020"
+output: html_document
+---
+
+<br>
+
+## Loading the data...
+
+```{r setup, message = FALSE, warning = FALSE}
+
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(scales)
+
+wd <- file.path("~", "eltecon-datascience")
+setwd(wd)
+
+xp <- fread("experiment_result_HW.csv")
+
+```
+
+<br>
+
+## Calculating the absolute uplift with uncertainty for the full period
+
+```{r calculate-uplift-with-uncertainty}
+
+xp[, .(view_rate = sum(has_viewed_website) / .N, num_contact = .N), group] %>%
+    dcast(. ~ group, value.var = c("view_rate", "num_contact")) %>%
+    .[, .(
+         a_uplift = view_rate_treatment - view_rate_control,
+         se = sqrt(
+             (view_rate_treatment * (1-view_rate_treatment) / num_contact_treatment) +
+             (view_rate_control * (1-view_rate_control) / num_contact_control)
+         )
+     )] %>%
+     .[, .(
+         a_uplift,
+         CI_lower = a_uplift - 1.96 * se,
+         CI_higher = a_uplift + 1.96 * se
+     )]
+
+```
+
+## Plotting the KPIs with uncertainty for full period
+
+```{r, uncertainty-for full period, out.height='70%', fig.align='center'}
+
+view_rate_dt <- xp[,
+    .(view_rate = sum(has_viewed_website) / .N,
+      num_contact = .N),
+    by = group
+]
+
+view_rate_dt <- view_rate_dt %>%
+                  .[, CI_lower := view_rate - (1.96 * sqrt(view_rate * (1 - view_rate) / num_contact))] %>%
+                  .[, CI_higher := view_rate + (1.96 * sqrt(view_rate * (1 - view_rate) / num_contact))]
+
+uplift = percent(view_rate_dt$view_rate[1] - view_rate_dt$view_rate[2])
+
+ggplot(data = view_rate_dt, aes(x = group, y = view_rate)) +
+    geom_col() +
+    geom_errorbar(aes(ymin = CI_lower, ymax = CI_higher)) +
+    theme_classic() +
+    geom_label(aes(label = percent(view_rate)), vjust = 2.5, position = position_dodge(0.9), color = "black", fontface = "bold", size =
+                 4, show.legend = FALSE) +
+    labs(title = "View rate KPI for the full period", subtitle = paste("The absolute uplift is", uplift), caption = "Made by Á.Kovács and S.N.Nguyen", x = NULL, y = "view rate") +
+    scale_y_continuous(labels = scales::percent)
+
+```
+
+## Ucertainty over time
+
+```{r uncertainty-over-time, out.height='70%', fig.align='center'}
+
+uncertainty_over_time_xp <- xp[, .(view_rate = sum(has_viewed_website) / .N, num_contact = .N), .(period, group)] %>%
+    dcast(period ~ group, value.var = c("view_rate", "num_contact")) %>%
+    .[, `:=`(
+        absolute_uplift = view_rate_treatment - view_rate_control,
+        standard_error = sqrt(view_rate_treatment * (1 - view_rate_treatment) / num_contact_treatment + view_rate_control * (1 - view_rate_control) / num_contact_control)
+    )] %>%
+    .[, `:=`(
+        CI_lower = absolute_uplift - 1.96 * standard_error,
+        CI_higher = absolute_uplift + 1.96 * standard_error
+    )]
+
+ggplot(uncertainty_over_time_xp, aes(period, absolute_uplift)) +
+    geom_col() +
+    geom_errorbar(aes(ymin = CI_lower, ymax = CI_higher)) +
+    labs(title = "The absolute uplift and uncertainty across preiods", subtitle = "Calculated for the view_rate KPI", x = "period", y = "Absolute uplift", caption = "Made by Á.Kovács and S.N.Nguyen") +
+    geom_label(aes(label = percent(absolute_uplift)), vjust = 4, position = position_dodge(0.9), color = "black", fontface = "bold",
+               size = 4, show.legend = FALSE)  +
+    scale_y_continuous(labels = scales::percent)
+
+```
+
+***
