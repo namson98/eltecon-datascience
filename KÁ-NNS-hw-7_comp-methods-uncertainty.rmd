@@ -1,0 +1,130 @@
+---
+title: "Week 7 - Computational methods for measuring uncertainity - Homework"
+author: "Kovács Ádám József, Nguyen Nam Son"
+date: "22/10/2020"
+output: html_document
+---
+
+## Loading the data...
+
+```{r setup, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(out.width = '65%')
+knitr::opts_chunk$set(fig.align = 'center')
+
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(scales)
+library(patchwork)
+
+wd <- file.path("~", "eltecon-datascience")
+setwd(wd)
+
+xp <- fread("experiment_result_HW.csv")
+
+```
+
+## Sampling the KPI of view rate
+
+```{r viewrate, echo = FALSE, eval = FALSE}
+
+bootstrapStatistic <- function(x, B = 10000, seed = 1021, fn = mean, ...) {
+  if (!is.vector(x)) stop("x needs to be a vector")
+  bs_view_rates <- c()
+  set.seed(seed)
+  
+  for (i in 1:B) {
+    bs_sample <- sample(x, length(x), replace = TRUE)
+    bs_view_rates <- c(bs_view_rates, fn(bs_sample, ...))
+  }
+  
+  return(bs_view_rates)
+}
+
+bs_means <- bootstrapStatistic(
+  xp[, has_viewed_website], B = 10000, fn = mean
+)
+
+paste("The mean of sample means is:", mean(bs_means))
+quantile(bs_means, c(0.025, 0.975))
+
+bs_medians <- bootstrapStatistic(
+  xp[, has_viewed_website], B = 10000, fn = median
+)
+
+paste("The median of sample medians is:", median(bs_medians))
+quantile(bs_medians, c(0.025, 0.975))
+
+```
+**Define test statistic:**
+
+```{r tstat, echo = TRUE}
+
+sample_view_diff <- abs(xp[group == "treatment", mean(has_viewed_website)] - xp[group == "control", mean(has_viewed_website)])
+
+paste("The t-stat of the difference between groups is:", sample_view_diff)
+
+```
+
+## Permutation hypothesis testing
+
+**Calculate distribution of test statistic under H0**
+
+```{r distribution, echo = TRUE}
+
+  B = 10000
+  perm_sample_diffs <- data.table(perm_id = integer(), perm_diff = numeric())
+  set.seed(1021)
+  for (i in 1:B) {
+    perm_sample <- data.table(
+      group = xp[, group],
+      view_rate = sample(xp[, has_viewed_website], xp[, .N], replace = FALSE)
+    )
+    perm_sample_diffs <- rbind(
+      perm_sample_diffs,
+      data.table(
+        perm_id = i,
+        perm_diff = perm_sample[group == "treatment", mean(view_rate)] - perm_sample[group == "control", mean(view_rate)]
+      )
+    )
+  }
+  
+```
+
+## Permutation hypothesis testing
+
+```{r plot}
+
+ggplot(perm_sample_diffs, aes(x = perm_diff)) +
+    geom_density() +
+    geom_vline(aes(xintercept = sample_view_diff), color = "blue") +
+    geom_vline(aes(xintercept = -1 * sample_view_diff), color = "blue") +
+    geom_vline(aes(xintercept = perm_sample_diffs[, quantile(perm_diff, 0.025)]), color = "red") +
+    geom_vline(aes(xintercept = perm_sample_diffs[, quantile(perm_diff, 0.975)]), color = "red") +
+    labs(
+      x = "View rate differences", y = NULL,
+      title = "Diff. in view rates across groups under H0",
+      subtitle = "<span style = 'color: blue;'>View diff. in sample</span> vs <span style = 'color: red;'>95% CI</span>"
+    ) +
+    theme_classic() +
+    theme(text = element_text(size = 10)) +
+    theme(plot.subtitle = ggtext::element_markdown())
+
+```
+
+## Permutation hypothesis testing
+
+**Calculate p-value**
+```{r pvalue, echo = TRUE}
+p_value <- perm_sample_diffs[,
+  sum(sample_view_diff < abs(perm_diff)) / .N
+]
+paste("The pvalue of the test is:", p_value)
+
+```
+**Since the p-value is zero, we can reject the null-hypothesis that the view rate of the groups are the same**
+
+***
