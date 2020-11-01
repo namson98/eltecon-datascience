@@ -13,12 +13,19 @@ knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(out.width = '65%')
 knitr::opts_chunk$set(fig.align = 'center')
 
-library(data.table)
-library(magrittr)
-library(ggplot2)
-library(scales)
-library(patchwork)
-library(StatsBombR)
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+pacman::p_load(tidyverse, data.table, ggplot2, scales, ## mainly dplyr, purrr, and tidyr
+               StatsBombR, SBpitch, soccermatics,
+               extrafont, ggupset, tibbletime,
+               ggtext, ggrepel, glue,
+               patchwork, cowplot, gtable, grid,
+               magick)
+
+## loading fonts
+loadfonts(device = "win", quiet = TRUE)
 
 matches <- FreeMatches(FreeCompetitions())
 
@@ -27,26 +34,102 @@ df <- get.matchFree(subset(matches, match_id == 18236))
 wd <- file.path("~", "eltecon-datascience")
 setwd(wd)
 
-allclean(df)
-
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Cleaning
 
 ```{r cars}
-summary(cars)
+
+df <- allclean(df)
+
+bar <- df %>% filter(team.name == "Barcelona")
+
+unique(bar$player.name)
+
+df_clean <- df %>% 
+  mutate(player.name = case_when(
+    player.name == "Lionel Andrés Messi Cuccittini" ~  "Lionel Messi",
+    player.name == "Eric-Sylvain Bilal Abidal" ~ "Eric Abidal",
+    player.name == "Sergio Busquets i Burgos" ~ "Sergio Busquets",
+    player.name == "Daniel Alves da Silva" ~ "Dani Alves",
+    player.name == "Xavier Hernández Creus" ~ "Xavi",
+    player.name == "Víctor Valdés Arribas" ~ "Victor Valdes",
+    player.name == "Javier Alejandro Mascherano" ~ "Javier Mascherano",
+    player.name == "David Villa Sánchez" ~ "David Villa",
+    player.name == "Andrés Iniesta Luján" ~ "Andres Iniesta",
+    player.name == "Gerard Piqué Bernabéu" ~ "Gerard Pique",
+    player.name == "Pedro Eliezer Rodríguez Ledesma" ~ "Pedro",
+    player.name == "Seydou Kéita" ~ "Keita",
+    player.name == "Carles Puyol i Saforcada" ~ "Carles Puyol"))
+    
+df_clean <- df_clean %>% mutate(shot.statsbomb_xg = if_else(is.na(shot.statsbomb_xg), 
+                                     0, shot.statsbomb_xg))
+
+df_clean_xg <- df_clean %>% 
+  group_by(team.name) %>% 
+  summarize(tot_xg = sum(shot.statsbomb_xg) %>% signif(digits = 2)) %>% 
+  mutate(team_label = glue::glue("{team.name}: {tot_xg} xG"))
+
+df_clean <- df_clean %>% 
+  left_join(df_clean_xg, by = "team.name") %>% 
+  mutate(player_label = case_when(
+    shot.outcome.name == "Goal" ~ glue::glue("{player.name}: {shot.statsbomb_xg %>% signif(digits = 2)} xG"),
+    TRUE ~ ""))
+
 ```
+
 
 ## Including Plots
 
 You can also embed plots, for example:
 
 ```{r pressure, echo=FALSE}
-plot(pressure)
-```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+windowsFonts(robotoc = windowsFont("Roboto Condensed"))
+
+ucl11_xg_timelineplot <- df_clean %>% 
+  ggplot() +
+  geom_segment(x = 0, xend = 95,
+               y = 0, yend = 0) +
+  geom_rect(data = df_clean %>% filter(shot.outcome.name == "Goal"),
+            aes(xmin = minute - 2, xmax = minute + 2,
+                ymin = -0.005, ymax = 0.005), 
+            alpha = 0.3, fill = "green") +
+  geom_label_repel(data = df_clean %>% filter(shot.outcome.name == "Goal"),
+             aes(x = minute, y = 0,
+                 color = team.name, label = player_label), 
+             nudge_x = 4, nudge_y = 0.003, family = "robotoc",
+             show.legend = FALSE) +
+  geom_point(data = df_clean %>% filter(shot.statsbomb_xg != 0),
+             shape = 21, stroke = 1.5,
+             aes(x = minute, y = 0, 
+                 size = shot.statsbomb_xg, fill = team.name)) +
+  scale_color_manual(values = c("Barcelona" = "#a50044",
+                                "Manchester United" = "black")) +
+  scale_fill_manual(values = c("Barcelona" = "#a50044",
+                                "Manchester United" = "white")) +
+  facet_wrap(vars(team_label), ncol = 1) +
+  scale_x_continuous(breaks = seq(0, 95, by = 5),
+                     labels = c(seq(0, 40, by = 5), "HT", 
+                                seq(50, 90, by = 5), "FT"),
+                     limits = c(-3, 95),
+                     expand = c(0.01, 0)) +
+  scale_y_continuous(limits = c(-0.005, 0.005),
+                     expand = c(0, 0)) +
+  scale_size(range = c(2, 6)) +
+  labs(caption = "By Kovács Ádám, Nguyen N. Son") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        strip.text = element_text(size = 16, family = "robotoc", 
+                                  face = "bold", color = "grey20"),
+        plot.caption = element_text(family = "robotoc", color = "grey20",
+                                    hjust = 0),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+  
+ucl11_xg_timelineplot
+
+
+```
