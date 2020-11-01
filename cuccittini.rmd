@@ -78,10 +78,7 @@ df_clean <- df_clean %>%
 
 ```
 
-
-## Including Plots
-
-You can also embed plots, for example:
+## xG (xpected goals) over time
 
 ```{r pressure, echo=FALSE}
 
