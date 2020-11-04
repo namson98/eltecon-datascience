@@ -1,0 +1,113 @@
+---
+title: "Homework - Week 8 - Prediction"
+author: "Kovács Ádám József, Nguyen Nam Son"
+date: "04/11/2020"
+output: html_document
+---
+
+```{r setup}
+
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(out.width = '65%')
+knitr::opts_chunk$set(fig.align = 'center')
+
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(titanic)
+library(stargazer)
+library(knitr)
+
+wd <- file.path("~", "eltecon-datascience")
+setwd(wd)
+
+kable(head(titanic_train))
+
+titanic_train <- titanic_train %>%
+  mutate(adult = ifelse(is.na(Age), NA, Age > 18))
+
+```
+
+**Predictions**
+
+```{r methods}
+
+#First prediction
+
+classifier1 <- glm(
+    Survived ~ Fare + Sex + adult + factor(Pclass),
+    data = titanic_train,
+    family = binomial(link = "logit")
+)
+
+#Second prediction (other loved ones makes us sacrifice ourselves and devote attention during such critic times)
+
+classifier2 <- glm(
+    Survived ~ Fare + Sex + adult + factor(Pclass) + SibSp,
+    data = titanic_train,
+    family = binomial(link = "logit")
+)
+
+#comparing the two models
+stargazer(x = classifier1, y = classifier2, type = "text")
+ 
+#Making predcitions
+predicted_prob1 <- predict.glm(
+  classifier1,
+  newdata = titanic_train,
+  type = "response"
+)
+
+predicted_prob2 <- predict.glm(
+  classifier2,
+  newdata = titanic_train,
+  type = "response"
+)
+
+#recoding probabilities to boolean outcomes
+predicted_class1 <- ifelse(predicted_prob1 > 0.5, 1, 0)
+predicted_class2 <- ifelse(predicted_prob2 > 0.5, 1, 0)
+
+
+```
+
+**Accuracy**
+
+```{r acc}
+
+calculateAccuracy <- function(actual, predicted) {
+    N <- length(!is.na(actual))
+    accuracy <- sum(actual == predicted, na.rm = TRUE) / N
+    return(accuracy)
+}
+
+accuracy1 <- calculateAccuracy(titanic_train$Survived, predicted_class1)
+accuracy2 <- calculateAccuracy(titanic_train$Survived, predicted_class2)
+
+paste("The accuracy of our first model is:",scales::percent(accuracy1))
+paste("The accuracy of our first model is:",scales::percent(accuracy2))
+
+```
+
+**Confusion Matrix**
+
+```{r cm}
+
+# First confusion matrix
+table(
+  titanic_train$Survived,
+  predicted_class1,
+  dnn = c("actual", "predicted")
+)
+
+# Second confusion matrix
+table(
+  titanic_train$Survived,
+  predicted_class2,
+  dnn = c("actual", "predicted")
+)
+
+```
+
+***
