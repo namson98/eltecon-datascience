@@ -52,7 +52,7 @@ classifier2 <- glm(
 #comparing the two models
 stargazer(x = classifier1, y = classifier2, type = "text")
  
-#Making predcitions
+#Making prediCtions
 predicted_prob1 <- predict.glm(
   classifier1,
   newdata = titanic_train,
