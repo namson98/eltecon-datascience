@@ -5,7 +5,7 @@ date: "04/11/2020"
 output: html_document
 ---
 
-```{r setup}
+```{r setup, warning = FALSE, message = FALSE}
 
 knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
@@ -19,10 +19,8 @@ library(titanic)
 library(stargazer)
 library(knitr)
 
-#wd <- file.path("~", "eltecon-datascience")
-#setwd(wd)
-
-setwd("C:\\ELTECON\\eltecon-datascience")
+wd <- file.path("~", "eltecon-datascience")
+setwd(wd)
 
 kable(head(titanic_train))
 
@@ -111,12 +109,10 @@ table(
 )
 
 ```
-```{r discussion}
 
-#Since the accuracy of the second model is better by 1% than the first model based on our training data, we would use that one for an out of sample prediction
 
-#Looking at the confusion matrices, we can see that the second model classifies those who do not survive well in 374-357 = 17 more times than the first model. However, it classifies well those who do survive in 203-194 = 9 times less. Thus, we would opt for the second model, since 17>9, but if the prediction of those who survive is of greatest importance and not so much the correct prediction of who does not survive, one could argue that we could be better off with the first model.
+Since the accuracy of the second model is better by 1% than the first model based on our training data, we would use that one for an out of sample prediction.
 
-```
+Looking at the confusion matrices, we can see that the second model classifies those who do not survive well in 374-357 = 17 more times than the first model. However, it classifies well those who do survive in 203-194 = 9 times less. Thus, we would opt for the second model, since 17>9, but if the prediction of those who survive is of greatest importance and not so much the correct prediction of who does not survive, one could argue that we could be better off with the first model.
 
 ***
