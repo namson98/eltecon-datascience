@@ -1,5 +1,5 @@
 ---
-title: "Homework - Week 9 - Prediction"
+title: "Homework - Week 9 - Model Selection"
 author: "Kovács Ádám József, Nguyen Nam Son"
 date: "11/11/2020"
 output: html_document
@@ -19,7 +19,6 @@ library(glue)
 library(purrr)
 library(caret)
 library(knitr)
-library(caTools)
 
 wd <- file.path("~", "eltecon-datascience")
 setwd(wd)
@@ -30,7 +29,7 @@ kable(head(
 
 ```
 
-**Confusion Matrix**
+**Models**
 
 ```{r cm}
 
@@ -43,81 +42,90 @@ train_index <- sample(1:n, floor(n*train_proportion))
 data_train <- data[train_index,]
 data_test <- data[-train_index,]
 
-# Define measure of interest
-calculateAccuracy <- function(actual, predicted) {
-  N <- length(actual)
-  accuracy <- sum(actual == predicted) / N
-  return(accuracy)
-}
-
-# baseline prediction
-table(data_train$is_spam)
-1-sum(data_test$is_spam)/length(data_test$is_spam)
+# model 1
+model1 <- glm(
+  is_spam ~ .,
+  data = data_train[,c(1, 3:73)],
+  family = binomial(link = "logit")
+)
 
 # model 2
 model2 <- glm(
   is_spam ~ .,
-  data = data_train[,c(1, 3:54)],
+  data = data_train[,c(1, 3:200)],
   family = binomial(link = "logit")
 )
 
+```
+
+**Precision, Recall, and F1 scores**
+
+```{r acc}
+
+# Define measure of interest
+calculateAccuracy <- function(predicted, actual) {
+  predicted <- as.factor(predicted)
+  actual <- as.factor(actual)
+  precision <- posPredValue(predicted, actual, positive="1")
+  recall <- sensitivity(predicted, actual, positive="1")
+  F1 <- (2 * precision * recall) / (precision + recall) #weighted average of precision and recall
+  return(F1)
+}
+```
+
+**F1 of model 1 for train and test**
+
+```{r acc1}
+
+# Transform probabilities and calculate accuracy measures for train and test set
+predicted_prob1_train <- predict.glm(model1, newdata = data_train, type = "response")
+predicted_class1_train <- ifelse(predicted_prob1_train > 0.5, 1, 0)
+model1_train_acc <- calculateAccuracy(data_train$is_spam, predicted_class1_train)
+
+paste("The accuracy of the training set is:", scales::percent(model1_train_acc))
+
+predicted_prob1 <- predict.glm(model1, newdata = data_test, type = "response")
+predicted_class1 <- ifelse(predicted_prob1 > 0.5, 1, 0)
+model1_test_acc <- calculateAccuracy(data_test$is_spam, predicted_class1)
+
+paste("The accuracy of the test set is:", scales::percent(model1_test_acc))
+
+```
+
+**F1 of model 2 for train and test**
+
+```{r acc2}
+
+# Transform probabilities and calculate accuracy measures for train and test set
 predicted_prob2_train <- predict.glm(model2, newdata = data_train, type = "response")
 predicted_class2_train <- ifelse(predicted_prob2_train > 0.5, 1, 0)
 model2_train_acc <- calculateAccuracy(data_train$is_spam, predicted_class2_train)
-model2_train_acc
+
+paste("The accuracy of the training set is:", scales::percent(model2_train_acc))
 
 predicted_prob2 <- predict.glm(model2, newdata = data_test, type = "response")
 predicted_class2 <- ifelse(predicted_prob2 > 0.5, 1, 0)
 model2_test_acc <- calculateAccuracy(data_test$is_spam, predicted_class2)
-model2_test_acc
 
-table(data_test$is_spam, predicted_class2, dnn = c("actual", "predicted"))
-
-is_sign <- summary(model2)$coeff[-1,4] < 0.01
-summary(model2)$coeff[is_sign,]
+paste("The accuracy of the test set is:", scales::percent(model2_test_acc))
 
 ```
 
-**Accuracy**
+**Cross validation**
 
-```{r acc}
+```{r methods, warning=FALSE}
 
-MSE <- function(y, pred) {
-    mean((y - pred)**2)
-}
-mse_train <- list()
-mse_test <- list()
-for (i in k) {
-    if (i == 0) {
-        model <- lm(y ~ 1, data = data_train)
-    } else {
-        model <- lm(y ~ poly(x, i, raw = TRUE), data = data_train)
-    }
-    colname <- paste0("pred",i)
-    data_train <- data_train[, eval(colname):=predict(model, newdata = data_train)]
-    mse_train[[colname]] <-  MSE(data_train[, y], data_train[, get(colname)])
-    data_test <- data_test[, eval(colname):=predict(model, newdata = data_test)]
-    mse_test[[colname]] <-  MSE(data_test[, y], data_test[, get(colname)])
-}
-evals <- cbind("train RMSE" = sqrt(unlist(mse_train)), "test RMSE" = sqrt(unlist(mse_test)))
-kable(evals, digits = 2)
-
-```
-**CV**
-
-```{r methods}
-# cross-validation
-
+#creating folds for the 1st model
 folds <- 5
 n <- nrow(data)
 
-set.seed(2698)
+set.seed(1234)
 holdout <- split(sample(1:n), 1:folds)
 
-CV_ACC <- imap(holdout, ~{
+CV_ACC <- map(holdout, ~{
     model <- glm(
-        is_spam ~ nchar + nwords + nwords/nchar,
-        data =  data[-.x,],
+        is_spam ~ .,
+        data =  data[-.x, c(1, 3:73)],
         family = binomial(link = "logit")
     )
     pred <- predict(model, newdata = data[.x,], type = "response")
@@ -125,46 +133,27 @@ CV_ACC <- imap(holdout, ~{
     calculateAccuracy(data[.x,is_spam], predicted_class)
 })
 
-mean(unlist(CV_ACC))
+paste("The mean accuracy of the 1st model after k-fold CV is:", scales::percent(mean(unlist(CV_ACC))))
 
-mse_cross <- list()
-data <- data[, constant := 1]
-train_control <- trainControl(method="cv", number=5)
-for (i in k) {
-    if (i == 0) {
-        model <- train(y ~ constant, 
-               data=data, 
-               trControl=train_control, 
-               method="lm", 
-               tuneGrid  = expand.grid(intercept = FALSE) )
-    } else {
-        formula <- as.formula(paste0("y ~ ", paste(paste0(paste0("I(x^",1:i),")"), collapse = " + ")))
-        model <- train(formula, 
-               data=data, 
-               trControl=train_control, 
-               method="lm")
-    }
-    mse_cross[[paste0("k_",i)]] <-  model$results$RMSE**2
-}
-evals <- cbind("train MSE" = unlist(mse_train), "test MSE" = unlist(mse_test), "CV MSE" = unlist(mse_cross))
-kable(evals, digits = 2)
+#creating folds for the 2nd model
+folds <- 5
+n <- nrow(data)
 
-```
+set.seed(1234)
+holdout <- split(sample(1:n), 1:folds)
 
-```{r m2}
+CV_ACC <- map(holdout, ~{
+    model <- glm(
+        is_spam ~ .,
+        data =  data[-.x, c(1, 3:200)],
+        family = binomial(link = "logit")
+    )
+    pred <- predict(model, newdata = data[.x,], type = "response")
+    predicted_class <- ifelse(pred > 0.5, 1, 0)
+    calculateAccuracy(data[.x,is_spam], predicted_class)
+})
 
-folds = createFolds(data$is_spam, k = 10)
-cv = lapply(folds, function(x) {
-	training_fold = data[-x, ]
-	test_fold = data[x, ]
-	classifier = glm(is_spam ~ .,
-            data = data_train[,c(1, 3:54)],
-            family = binomial(link = "logit"))
-	y_pred = predict(classifier, newdata = data[.x,], type = "response")
-  predicted_class <- ifelse(pred > 0.5, 1, 0)
-  calculateAccuracy(data[.x,is_spam], predicted_class)
-}) #mapping accuracy function to all elements/folds
-mean(unlist(CV_ACC))
-	
+paste("The mean accuracy of the 2nd model after k-fold CV is:", scales::percent(mean(unlist(CV_ACC))))
+
 ```
 ***
