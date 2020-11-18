@@ -23,8 +23,6 @@ library(knitr)
 wd <- file.path("~", "eltecon-datascience")
 setwd(wd)
 
-
-
 data <- fread("spam_clean.csv")
 kable(head(
   data[, .(is_spam, message, nchar, nwords)]))
@@ -158,14 +156,13 @@ CV_ACC <- map(holdout, ~{
 paste("The mean accuracy of the 2nd model after k-fold CV is:", scales::percent(mean(unlist(CV_ACC))))
 
 ```
-```{r Discussion}
 
-#Our alternative measure to evaluate the performance of the spam analysis model was the F-score or F-measure, which is calculated from the precision and recall of the test.Precision is the number of correctly identified positive results divided by the number of all positive results, including those not identified correctly, and the recall is the number of correctly identified positive results divided by the number of all samples that should have been identified as positive.
-#We can see that with the using the first model gives 85% accuracy on the trainin data and 84% accuracy on the test data, while the second model gives 94% accuracy on the training data and 88% on the test data.
-#We conclude that the second model is more desireable.
- 
+**Discussion**
 
-```
+Our alternative measure to evaluate the performance of the spam analysis model was the F-score or F-measure, which is calculated from the precision and recall of the test.Precision is the number of correctly identified positive results divided by the number of all positive results, including those not identified correctly, and the recall is the number of correctly identified positive results divided by the number of all samples that should have been identified as positive.
 
+We can see that with the using the first model gives 85% accuracy on the trainin data and 84% accuracy on the test data, while the second model gives 94% accuracy on the training data and 88% on the test data.
+
+We conclude that the second model is more desireable.
 
 ***
