@@ -1,0 +1,113 @@
+---
+title: "Homework - Week 10 - Regularization"
+author: "Kovács Ádám József, Nguyen Nam Son"
+date: "19/11/2020"
+output: html_document
+---
+
+```{r setup, warning = FALSE, message = FALSE}
+
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(out.width = '65%')
+knitr::opts_chunk$set(fig.align = 'center')
+
+library(data.table)
+library(purrr)
+library(caret)
+library(knitr)
+
+wd <- file.path("~", "eltecon-datascience")
+setwd(wd)
+
+data <- fread("spam_clean.csv")
+kable(head(
+  data[, .(is_spam, message, nchar, nwords)]))
+
+```
+
+**Train-test split**
+
+```{r cm}
+
+train_proportion <- 0.8
+n <- nrow(data)
+
+set.seed(1234)
+train_index <- sample(1:n, floor(n*train_proportion))
+
+data_train <- data[train_index,-2]
+data_test <- data[-train_index,-2]
+
+# Create 5-fold CV (used later)
+myControl <- trainControl(method = "cv", number = 5)
+
+```
+
+**Defining measure of accuracy**
+
+```{r acc}
+
+calculateAccuracy <- function(actual, predicted) {
+    N <- length(actual)
+    accuracy <- sum(actual == predicted) / N
+    return(accuracy)
+}
+
+```
+
+**CV Ridge regression with lambda = 1**
+
+```{r ridge1, warning=FALSE}
+
+# Fit the first model w/ lambda = 1
+ridge1 <- train(is_spam ~ ., data = data_train, method = "glmnet",
+               tuneGrid = expand.grid(alpha = 0,
+                                      lambda = 1),
+               trControl = myControl,
+               preProc = c("center","scale"))
+
+ridge1
+
+```
+
+**Accuracy of the first model**
+
+```{r acc1}
+
+data_test <- data_test %>% 
+    .[, predicted_prob_ridge_best := predict(ridge1, newdata = data_test)] %>% 
+    .[, predicted_class_ridge_best := ifelse(predicted_prob_ridge_best > 0.5, 1, 0)]
+
+paste("The accuracy with lambda = 1 is:", scales::percent(calculateAccuracy(data_test$is_spam, data_test$predicted_class_ridge_best)))
+
+```
+
+**CV Ridge regression with lambda = 0.1**
+
+```{r ridge2}
+
+# Fit the second model w/ lambda = 0.01
+ridge2 <- train(is_spam ~ ., data = data_train, method = "glmnet",
+               tuneGrid = expand.grid(alpha = 0,
+                                      lambda = 0.1),
+               trControl = myControl,
+               preProc = c("center","scale"))
+
+ridge2
+
+```
+
+**Accuracy of the second model**
+
+```{r acc2}
+
+data_test <- data_test %>% 
+    .[, predicted_prob_ridge_best := predict(ridge2, newdata = data_test)] %>% 
+    .[, predicted_class_ridge_best := ifelse(predicted_prob_ridge_best > 0.5, 1, 0)]
+
+paste("The accuracy with lambda = 0.1 is:",scales::percent(calculateAccuracy(data_test$is_spam, data_test$predicted_class_ridge_best)))
+
+```
+
+***
