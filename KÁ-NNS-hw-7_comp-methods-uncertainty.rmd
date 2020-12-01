@@ -20,16 +20,33 @@ library(ggplot2)
 library(scales)
 library(patchwork)
 
-wd <- file.path("~", "eltecon-datascience")
-setwd(wd)
+#wd <- file.path("~", "eltecon-datascience")
+#setwd(wd)
 
-xp <- fread("experiment_result_HW.csv")
+setwd("C:\\ELTECON\\eltecon-ds")
+
+xp <- fread("week 5-6/experiment_result_HW.csv")
 
 ```
 
 ## Sampling the KPI of view rate
 
 ```{r viewrate, echo = FALSE, eval = FALSE}
+
+###Ádám megoldása
+
+bs_view_rates <-c()
+
+B = 10000
+set.seed(1021)
+for (i in 1:B) {
+  bs_sample = sample(xp[,has_viewed_website], xp[,.N], replace = TRUE)
+  bs_view_rates <- c(bs_view_rates, mean(bs_sample))
+}
+
+mean(bs_view_rates)
+
+### Szöni megoldása
 
 bootstrapStatistic <- function(x, B = 10000, seed = 1021, fn = mean, ...) {
   if (!is.vector(x)) stop("x needs to be a vector")
@@ -49,6 +66,13 @@ bs_means <- bootstrapStatistic(
 )
 
 paste("The mean of sample means is:", mean(bs_means))
+
+###Ádám
+
+quantile(bs_view_rates, c(0.025,0.975))
+
+###Szöni
+
 quantile(bs_means, c(0.025, 0.975))
 
 bs_medians <- bootstrapStatistic(
@@ -63,6 +87,16 @@ quantile(bs_medians, c(0.025, 0.975))
 
 ```{r tstat, echo = TRUE}
 
+###Ádám megoldása
+
+sample_mean_control  <- xp[group == "control",  mean(has_viewed_website)]
+sample_mean_treatment <- xp[group == "treatment", mean(has_viewed_website)]
+
+sample_diff <- abs(sample_mean_treatment - sample_mean_control)
+sample_diff
+
+###Szöni megoldása
+
 sample_view_diff <- abs(xp[group == "treatment", mean(has_viewed_website)] - xp[group == "control", mean(has_viewed_website)])
 
 paste("The t-stat of the difference between groups is:", sample_view_diff)
@@ -74,6 +108,29 @@ paste("The t-stat of the difference between groups is:", sample_view_diff)
 **Calculate distribution of test statistic under H0**
 
 ```{r distribution, echo = TRUE}
+
+###Ádám megoldása
+
+B = 10000
+  perm_sample_diffs <- data.table(perm_id = integer(), perm_diff = numeric())
+
+  set.seed(1021)
+  for (i in 1:B) {
+    perm_sample <- data.table(
+      group = xp[, group],
+      has_viewed = sample(xp[, has_viewed_website], xp[,.N], replace = FALSE)
+    )
+
+    perm_sample_diffs <- rbind(
+      perm_sample_diffs,
+      data.table(
+        perm_id = i,
+        perm_diff = perm_sample[group == "treatment", mean(has_viewed)] - perm_sample[group == "control", mean(has_viewed)]
+      )
+    )
+  }
+
+###Szöni megoldása
 
   B = 10000
   perm_sample_diffs <- data.table(perm_id = integer(), perm_diff = numeric())
@@ -92,11 +149,30 @@ paste("The t-stat of the difference between groups is:", sample_view_diff)
     )
   }
   
+  ###Ezek nekem vmiért nem futnak le.... lehet csak türelmetlen vagyok / szar a gépem
+  
 ```
 
 ## Permutation hypothesis testing
 
 ```{r plot}
+###Ádám megoldása
+ggplot(perm_sample_diffs, aes(x = perm_diff)) +
+    geom_density() +
+    geom_vline(aes(xintercept = sample_view_diff), color = "blue") +
+    geom_vline(aes(xintercept = -1 * sample_viewt_diff), color = "blue") +
+    geom_vline(aes(xintercept = perm_sample_diffs[, quantile(perm_diff, 0.025)]), color = "red") +
+    geom_vline(aes(xintercept = perm_sample_diffs[, quantile(perm_diff, 0.975)]), color = "red") +
+    labs(
+      x = "View rate Diff.", y = NULL,
+      title = "Diff. in View rate under H0",
+      subtitle = "<span style = 'color: blue;'>View rate diff. in sample</span> vs <span style = 'color: red;'>95% CI</span>"
+    ) +
+    theme_classic() +
+    theme(text = element_text(size = 20)) +
+    theme(plot.subtitle = ggtext::element_markdown())
+
+###Szöni megoldása
 
 ggplot(perm_sample_diffs, aes(x = perm_diff)) +
     geom_density() +
@@ -119,6 +195,16 @@ ggplot(perm_sample_diffs, aes(x = perm_diff)) +
 
 **Calculate p-value**
 ```{r pvalue, echo = TRUE}
+###Ádám megoldása
+
+p_value <- perm_sample_diffs[,
+  sum(sample_view_diff < abs(perm_diff)) / .N
+]
+
+print(p_value)
+
+
+### SZöni megoldása
 p_value <- perm_sample_diffs[,
   sum(sample_view_diff < abs(perm_diff)) / .N
 ]

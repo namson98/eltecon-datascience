@@ -17,8 +17,12 @@ library(purrr)
 library(caret)
 library(knitr)
 
-wd <- file.path("~", "eltecon-datascience")
-setwd(wd)
+#wd <- file.path("~", "eltecon-datascience")
+#setwd(wd)
+
+setwd("C:\\ELTECON/eltecon-ds/week 7-8")
+
+data <- fread("spam_clean.csv")
 
 data <- fread("spam_clean.csv")
 kable(head(
