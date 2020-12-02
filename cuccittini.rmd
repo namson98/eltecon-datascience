@@ -5,7 +5,7 @@ date: "31/10/2020"
 output: html_document
 ---
 
-```{r setup, message = FALSE, warning = FALSE, echo = FALSE}
+```{r setup, message = FALSE, warning = FALSE}
 
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
@@ -544,6 +544,9 @@ Messicarry <- df_clean %>% filter (type.name == 'Carry', player.name == 'Lionel 
 
 Messicarry$under_pressure <- ifelse(is.na(Messicarry$under_pressure), FALSE, TRUE)
 
+Messidispos <- df_clean %>% filter(type.name == 'Dispossessed', player.name == 'Lionel Messi')
+
+Messidribble <- df_clean %>% filter(type.name == 'Dribble', player.name == 'Lionel Messi')
 ```
 
 ##Pass plot
@@ -562,6 +565,14 @@ p
 
 ```
 
+
+```{r}
+p2 <- createPitch("#ffffff", "#A9A9A9", "#ffffff", "#000000", BasicFeatures=FALSE) + geom_point(data = Messicarry, aes(x = ifelse(carry.end_location.x>location.x, location.x,NA), y = location.y), alpha = 0.7) + geom_segment(data = Messicarry, aes(x = ifelse(carry.end_location.x>location.x,location.x,NA), y = location.y, xend = carry.end_location.x, yend = carry.end_location.y, colour = under_pressure),alpha = 0.7, arrow = arrow(length = unit(0.08,"inches"))) +
+  scale_colour_manual(values = c("blue", "red") , name = "Under Pressure") +
+  scale_y_reverse()+ labs(title = "Ball carry of Messi", subtitle = 'vs Manchester United') + geom_point(data = Messidispos, aes(x = location.x, y = location.y), shape = '^', colour = 'yellow', size = 10) + geom_point(data = Messidribble, aes(x = location.x, y = location.y), shape = 'o', size = 5, colour = 'black') + scale_colour_manual(values = c("blue", "red") , name = "Under Pressure") +
+scale_shape_manual(values = c("^", "o"), name = "Actions")
+p2 
+```
 
 
 ```{r}
@@ -708,7 +719,7 @@ foulwon <- messi %>% filter(type.name == 'Foul Won' & player.name != is.na(playe
 foulwon
 ```
 
-```{r dribble2}
+```{r foulwon}
 
 ggplot(foulwon, aes(x =reorder(player.name, n), y = n)) + 
 geom_bar(stat="identity", colour="white")+
