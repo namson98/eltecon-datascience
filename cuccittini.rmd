@@ -10,7 +10,7 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
-knitr::opts_chunk$set(out.width = '65%')
+knitr::opts_chunk$set(out.width = '90%')
 knitr::opts_chunk$set(fig.align = 'center')
 
 if (!require("pacman")) {
@@ -667,7 +667,7 @@ text=element_text(family="Source Sans Pro"),
 legend.title=element_blank(),
 legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
 legend.position = "bottom") +
-scale_fill_manual(values = c("red", "green", "yellow", "blue"), labels = c( "Saved","Goal","Off-target","Blocked")) +
+scale_fill_manual(values = c("red", "green", "yellow", "blue"), labels = c( "Saved","Off-target","Goal","Blocked")) +
 coord_flip()+ 
 guides(fill = guide_legend(reverse = TRUE)) 
 
@@ -723,7 +723,7 @@ foulwon
 
 ggplot(foulwon, aes(x =reorder(player.name, n), y = n)) + 
 geom_bar(stat="identity", colour="white")+
-labs(title = "Dribbles", subtitle = "UCL Final 2011-12",
+labs(title = "Fouls won", subtitle = "UCL Final 2011-12",
 x="Players",y ='')+
 theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
 axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
