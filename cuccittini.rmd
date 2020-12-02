@@ -64,6 +64,23 @@ df_clean <- df %>%
     player.name == "Pedro Eliezer Rodríguez Ledesma" ~ "Pedro",
     player.name == "Seydou Kéita" ~ "Keita",
     player.name == "Carles Puyol i Saforcada" ~ "Carles Puyol"))
+
+df_clean <- df_clean %>% 
+  mutate(pass.recipient.name = case_when(
+    pass.recipient.name == "Lionel Andrés Messi Cuccittini" ~  "Lionel Messi",
+    pass.recipient.name == "Eric-Sylvain Bilal Abidal" ~ "Eric Abidal",
+    pass.recipient.name == "Sergio Busquets i Burgos" ~ "Sergio Busquets",
+    pass.recipient.name == "Daniel Alves da Silva" ~ "Dani Alves",
+    pass.recipient.name == "Xavier Hernández Creus" ~ "Xavi",
+    pass.recipient.name == "Víctor Valdés Arribas" ~ "Victor Valdes",
+    pass.recipient.name == "Javier Alejandro Mascherano" ~ "Javier Mascherano",
+    pass.recipient.name == "David Villa Sánchez" ~ "David Villa",
+    pass.recipient.name == "Andrés Iniesta Luján" ~ "Andres Iniesta",
+    pass.recipient.name == "Gerard Piqué Bernabéu" ~ "Gerard Pique",
+    pass.recipient.name == "Pedro Eliezer Rodríguez Ledesma" ~ "Pedro",
+    pass.recipient.name == "Seydou Kéita" ~ "Keita",
+    pass.recipient.name == "Carles Puyol i Saforcada" ~ "Carles Puyol")
+  )
     
 df_clean <- df_clean %>% mutate(shot.statsbomb_xg = if_else(is.na(shot.statsbomb_xg), 
                                      0, shot.statsbomb_xg))
@@ -543,6 +560,10 @@ weightbarca <- barcapasses %>%
 
 Messipasses <- df %>% filter(type.name == "Pass", player.name == "Lionel Andrés Messi Cuccittini") 
 
+Messicarry <- df_clean %>% filter (type.name == 'Carry', player.name == 'Lionel Messi')
+
+Messicarry$under_pressure <- ifelse(is.na(Messicarry$under_pressure), FALSE, TRUE)
+
 ```
 
 
@@ -556,12 +577,25 @@ Messipasses <- df %>% filter(type.name == "Pass", player.name == "Lionel Andrés
   #soccerPassmap(fill = "lightblue", arrow = "r",
    #             title = "Argentina (vs France, 30th June 2018)")
 
-p <- createPitch("#ffffff", "#A9A9A9", "#ffffff", "#000000", BasicFeatures=FALSE) + geom_point(data = Messipasses, aes(x = location.x, y = location.y), alpha = 0.7) + geom_segment(data = Messipasses, aes(x = location.x, y = location.y, xend = pass.end_location.x, yend = pass.end_location.y, colour = pass.outcome.name),alpha = 0.7, arrow = arrow(length = unit(0.08,"inches"))) +
+p <- createPitch("#ffffff", "#A9A9A9", "#ffffff", "#000000", BasicFeatures=FALSE) + geom_point(data = Messipasses, aes(x = ifelse(pass.end_location.x>location.x, location.x,NA), y = location.y), alpha = 0.7) + geom_segment(data = Messipasses, aes(x = ifelse(pass.end_location.x>location.x,location.x,NA), y = location.y, xend = pass.end_location.x, yend = pass.end_location.y, colour = pass.outcome.name),alpha = 0.7, arrow = arrow(length = unit(0.08,"inches"))) +
   scale_colour_manual(values = c("blue", "red", "green") , name = "Outcome") +
-  scale_y_reverse()+ labs(title = "Passes of Messi", subtitle = 'vs Manchester United') 
+  scale_y_reverse()+ labs(title = "Progressive passes of Messi", subtitle = 'vs Manchester United') 
 p
 
 ```
+
+
+
+```{r}
+p2 <- createPitch("#ffffff", "#A9A9A9", "#ffffff", "#000000", BasicFeatures=FALSE) + geom_point(data = Messicarry, aes(x = ifelse(carry.end_location.x>location.x, location.x,NA), y = location.y), alpha = 0.7) + geom_segment(data = Messicarry, aes(x = ifelse(carry.end_location.x>location.x,location.x,NA), y = location.y, xend = carry.end_location.x, yend = carry.end_location.y, colour = under_pressure),alpha = 0.7, arrow = arrow(length = unit(0.08,"inches"))) +
+  scale_colour_manual(values = c("blue", "red") , name = "Under Pressure") +
+  scale_y_reverse()+ labs(title = "Ball carry of Messi", subtitle = 'vs Manchester United') 
+p2 
+```
+
+
+
+
 
 ```{r descriptive}
 
@@ -578,6 +612,10 @@ passes <- messi %>% filter(type.name == 'Pass' & player.name != is.na(player.nam
 
 passes
 ```
+
+
+
+
 
 
 
@@ -638,5 +676,12 @@ guides(fill = guide_legend(reverse = TRUE))
 ```
 
 
+```{r}
+shots <- messi %>% filter(type.name == 'Shot' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+  summarise(n = n(), avg_length = mean(pass.length), unsuccessful = sum(pass.outcome.name %in% c('Incomplete', 'Out')), successful = n - unsuccessful, crosses = sum(!is.na(pass.cross)),switch = sum(!is.na(pass.switch)), backheel = sum(!is.na(pass.backheel)), shot_assist = sum(!is.na(pass.shot_assist)), assist = sum(!is.na(pass.goal_assist)))
+
+passes
+```
 
 
