@@ -16,7 +16,7 @@ if (!require("pacman")) {
   install.packages("pacman")
 }
 
-pacman::p_load(tidyverse, data.table, ggplot2, scales, ## mainly dplyr, purrr, and tidyr
+pacman::p_load(tidyverse, data.table, ggplot2, scales,
                StatsBombR, SBpitch, soccermatics,
                extrafont, ggupset, tibbletime,
                ggtext, ggrepel, glue, patchwork,
@@ -97,7 +97,7 @@ df_clean <- df_clean %>%
 
 ```{r descriptive}
 
-messi <- df_clean[,c("team.name", 'player.name', 'minute', 'type.name', 'play_pattern.name', 'pass.length','pass.cross','pass.switch', 'pass.backheel', 'pass.recipient.name','pass.shot_assist', 'pass.goal_assist', 'pass.height.name', 'pass.type.name','pass.outcome.name', 'ball_receipt.outcome.name', 'dribble.outcome.name', 'shot.statsbomb_xg', 'shot.outcome.name', 'shot.type.name', 'foul_won.defensive', 'foul_won.advantage')] %>%
+messi <- df_clean[,c("team.name", 'player.name', 'minute', 'type.name', 'play_pattern.name', 'pass.length','pass.cross','pass.switch', 'pass.backheel', 'pass.recipient.name','pass.shot_assist', 'pass.goal_assist', 'pass.height.name', 'pass.type.name','pass.outcome.name', 'ball_receipt.outcome.name', 'dribble.outcome.name', 'shot.statsbomb_xg', 'shot.outcome.name', 'shot.type.name', 'foul_won.defensive', 'foul_won.advantage', 'location.x', "pass.end_location.x")] %>%
   filter(team.name == "Barcelona")
 
 ```
@@ -105,7 +105,7 @@ messi <- df_clean[,c("team.name", 'player.name', 'minute', 'type.name', 'play_pa
 ```{r}
 passes <- messi %>% filter(type.name == 'Pass' & player.name != is.na(player.name)) %>%
   group_by(player.name) %>% 
-  summarise(n = n(), avg_length = mean(pass.length), unsuccessful = sum(pass.outcome.name %in% c('Incomplete', 'Out')), successful = n - unsuccessful, crosses = sum(!is.na(pass.cross)),switch = sum(!is.na(pass.switch)), backheel = sum(!is.na(pass.backheel)), shot_assist = sum(!is.na(pass.shot_assist)), assist = sum(!is.na(pass.goal_assist)))
+  summarise(n = n(), avg_length = mean(pass.length), unsuccessful = sum(pass.outcome.name %in% c('Incomplete', 'Out')), successful = n - unsuccessful, crosses = sum(!is.na(pass.cross)),switch = sum(!is.na(pass.switch)), backheel = sum(!is.na(pass.backheel)), shot_assist = sum(!is.na(pass.shot_assist)), assist = sum(!is.na(pass.goal_assist)), forward = sum(pass.end_location.x > location.x))
 
 passes
 ```
@@ -141,7 +141,6 @@ ggplot(passes2, aes(x =reorder(player.name, value), y = value, fill=fct_rev(vari
   guides(fill = guide_legend(reverse = TRUE)) 
 
 ```
-
 
 ```{r}
 shots <- messi %>% filter(type.name == 'Shot' & player.name != is.na(player.name)) %>%
@@ -252,6 +251,55 @@ ggplot(foulwon, aes(x =reorder(player.name, n), y = n)) +
   guides(fill = guide_legend(reverse = TRUE)) 
 
 ```
+
+**Radar plot**
+
+```{r}
+radar <- left_join(passes, shots, by = "player.name") %>% left_join(., dribble, by = "player.name") %>% na.omit()
+radar$pass_acc <- (radar$successful.x / radar$n.x) * 100
+radar$shot_acc <- ((radar$goal + radar$saved) / radar$n.y) * 100
+radar$conversion_rate <- (radar$goal / radar$n.y) * 100
+radar$dribble_rate <- (radar$successful.y / radar$n) * 100
+radar$forward_pass <- (radar$forward.x/radar$n.x) * 100
+radar2 <- radar[c(3:5),]
+
+# Construct the data set
+data <- data.frame(Pass_Accuracy = c(100, 0, radar2$pass_acc),
+                   Dribble_Success_Rate = c(100, 0, radar2$dribble_rate),
+                   Shots_Accuracy = c(100, 0, radar2$shot_acc),
+                   Conversion_Rate = c(100, 0, radar2$conversion_rate),
+                   Forward_Pass_Rate = c(100, 0, radar2$forward_pass),
+                   row.names = c("max", "min", "David Villa", "Messi", "Pedro"))
+
+# Define fill colors
+colors_fill <- c(scales::alpha("gray", 0.1),
+                 scales::alpha("gold", 0.1),
+                 scales::alpha("tomato", 0.1))
+
+# Define line colors
+colors_line <- c(scales::alpha("darkgray", 0.9),
+                scales::alpha("gold", 0.9),
+                scales::alpha("tomato", 0.9))
+
+# Create plot
+radarchart(data, 
+           seg = 5,  # Number of axis segments
+           title = "Barca Radar Chart",
+           pcol = colors_line,
+           pfcol = colors_fill,
+           plwd = 4,
+           plty = c(1,1,1),
+           vlabels = c("Pass Accuracy", "Dribble Success Rate", "Shots Accuracy", "Conversion Rate", "Forward Pass Rate"),
+           vlcex = 0.5)
+
+# Add a legend
+legend(x=1, 
+       y=1.15, 
+       legend = rownames(data[-c(1,2),]), 
+       bty = "n", pch=20 , col = colors_line, cex = 1.05, pt.cex = 3)
+
+```
+
 
 ## xG (xpected goals) over time
 
