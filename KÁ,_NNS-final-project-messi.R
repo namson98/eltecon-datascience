@@ -28,8 +28,6 @@ setwd(wd)
 
 #setwd("C:\\ELTECON\\eltecon-datascience")
 
-## Cleaning
-
 # EDA ---------------------------------------------------------------------
 
 df <- allclean(df)
@@ -71,6 +69,22 @@ df_clean <- df_clean %>%
     pass.recipient.name == "Carles Puyol i Saforcada" ~ "Carles Puyol")
   )
 
+df_clean <- df %>% 
+  mutate(player.name = case_when(
+    player.name == "Ji-Sung Park" ~  "Park Ji-Sung",
+    player.name == "Patrice Evra" ~ "Patrice Evra",
+    player.name == "Edwin van der Sar" ~ "Edwin van der Sar",
+    player.name == "Paul Scholes" ~ "Paul Scholes",
+    player.name == "Javier Hernández Balcázar" ~ "Chicharito",
+    player.name == "Ryan Giggs" ~ "Ryan Giggs",
+    player.name == "Nemanja Vidić" ~ "Nemanja Vidić",
+    player.name == "Fábio Pereira da Silva" ~ "Fábio",
+    player.name == "Wayne Mark Rooney" ~ "Wayne Rooney",
+    player.name == "Luis Antonio Valencia Mosquera" ~ "Valencia",
+    player.name == "Michael Carrick" ~ "Michael Carrick",
+    player.name == "Rio Ferdinand" ~ "Rio Ferdinand",
+    player.name == "Luís Carlos Almeida da Cunha" ~ "Nani"))
+
 df_clean <- df_clean %>% mutate(shot.statsbomb_xg = if_else(is.na(shot.statsbomb_xg), 
                                                             0, shot.statsbomb_xg))
 
@@ -84,7 +98,6 @@ df_clean <- df_clean %>%
   mutate(player_label = case_when(
     shot.outcome.name == "Goal" ~ glue::glue("{player.name}: {shot.statsbomb_xg %>%
                                              signif(digits = 2)} xG"), TRUE ~ ""))
-
 
 # Descriptives ------------------------------------------------------------
 
@@ -114,6 +127,72 @@ messi <- df_clean[,c("team.name",
                      'location.x',
                      "pass.end_location.x")] %>%
   filter(team.name == "Barcelona")
+
+mun <- df_clean[,c("team.name",
+                     'player.name',
+                     'minute',
+                     'type.name',
+                     'play_pattern.name',
+                     'pass.length',
+                     'pass.cross',
+                     'pass.switch',
+                     'pass.backheel',
+                     'pass.recipient.name',
+                     'pass.shot_assist',
+                     'pass.goal_assist',
+                     'pass.height.name',
+                     'pass.type.name',
+                     'pass.outcome.name', 
+                     'ball_receipt.outcome.name',
+                     'dribble.outcome.name',
+                     'shot.statsbomb_xg',
+                     'shot.outcome.name',
+                     'shot.type.name',
+                     'foul_won.defensive',
+                     'foul_won.advantage',
+                     'location.x',
+                     "pass.end_location.x")] %>%
+  filter(team.name == "Manchester United")
+
+passesmu <- mun %>% 
+  filter(type.name == 'Pass' & player.name != is.na(player.name)) %>%
+    group_by(player.name) %>%
+      summarise(n = n(),
+                avg_length = mean(pass.length),
+                unsuccessful = sum(pass.outcome.name %in% c('Incomplete', 'Out')),
+                successful = n - unsuccessful,
+                crosses = sum(!is.na(pass.cross)),
+                switch = sum(!is.na(pass.switch)),
+                backheel = sum(!is.na(pass.backheel)),
+                shot_assist = sum(!is.na(pass.shot_assist)),
+                assist = sum(!is.na(pass.goal_assist)),
+                forward = sum(pass.end_location.x > location.x))
+
+shotsmu <- mun %>% filter(type.name == 'Shot' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+  summarise(n = n(),
+            offtarget = sum(shot.outcome.name == "Off T"),
+            blocked = sum(shot.outcome.name == "Blocked"),
+            goal = sum(shot.outcome.name == "Goal"),
+            saved = sum(shot.outcome.name == "Saved"))
+
+dribblemu <- mun %>% filter(type.name == 'Dribble' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+  summarise(n = n(),
+            successful = sum(dribble.outcome.name == "Complete"),
+            unsuccessful = sum(dribble.outcome.name == "Incomplete"))
+
+foulwonmu <- mun %>% filter(type.name == 'Foul Won' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+  summarise(n = n())
+
+shots <- messi %>% filter(type.name == 'Shot' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+  summarise(n = n(),
+            offtarget = sum(shot.outcome.name == "Off T"),
+            blocked = sum(shot.outcome.name == "Blocked"),
+            goal = sum(shot.outcome.name == "Goal"),
+            saved = sum(shot.outcome.name == "Saved"))
 
 
 passes <- messi %>% filter(type.name == 'Pass' & player.name != is.na(player.name)) %>%
@@ -256,7 +335,9 @@ ggplot(foulwon, aes(x =reorder(player.name, n), y = n)) +
         legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
         legend.position = "bottom") +
   coord_flip()+ 
-  guides(fill = guide_legend(reverse = TRUE)) 
+  guides(fill = guide_legend(reverse = TRUE))
+
+# Radar plot for forward Barca trio ---------------------------------------------
 
 radar <- left_join(passes, shots, by = "player.name") %>% left_join(., dribble, by = "player.name") %>% na.omit()
 radar$pass_acc <- (radar$successful.x / radar$n.x) * 100
@@ -287,7 +368,7 @@ colors_line <- c(scales::alpha("blue", 0.9),
 # Create plot
 radarchart(data, 
            seg = 4,  # Number of axis segments
-           title = "Performance of the Forward Trio",
+           title = "Performance of the BAR Forward Trio",
            pcol = colors_line,
            pfcol = colors_fill,
            plwd = 4,
@@ -299,6 +380,105 @@ radarchart(data,
 legend(x=1, 
        y=1.15, 
        legend = rownames(data[-c(1,2),]), 
+       bty = "n", pch=20 , col = colors_line, cex = 1.05, pt.cex = 3)
+
+# Radar plot for forward MU trio ---------------------------------------------
+
+radarmu <- left_join(passesmu, shotsmu, by = "player.name") %>% left_join(., dribblemu, by = "player.name")
+radarmu$pass_acc <- (radarmu$successful.x / radarmu$n.x) * 100
+radarmu$shot_acc <- ((radarmu$goal + radarmu$saved) / radarmu$n.y) * 100
+radarmu$conversion_rate <- (radarmu$goal / radarmu$n.y) * 100
+radarmu$dribble_rate <- (radarmu$successful.y / radarmu$n) * 100
+radarmu$forward_pass <- (radarmu$forward/radarmu$n.x) * 100
+radarmu2 <- radarmu[radarmu$player.name %in% c("Wayne Rooney", "Chicharito", "Nani"),]
+
+# Construct the data set
+datamu <- data.frame(Pass_Accuracy = c(100, 0, radarmu2$pass_acc),
+                   Dribble_Success_Rate = c(100, 0, radarmu2$dribble_rate),
+                   Shots_Accuracy = c(100, 0, radarmu2$shot_acc),
+                   Conversion_Rate = c(100, 0, radarmu2$conversion_rate),
+                   Forward_Pass_Rate = c(100, 0, radarmu2$forward_pass),
+                   row.names = c("max", "min", "Chicarito", "Nani", "Rooney"))
+
+# Define fill colors
+colors_fill <- c(scales::alpha("gray", 0.1),
+                 scales::alpha("gold", 0.1),
+                 scales::alpha("tomato", 0.1))
+
+# Define line colors
+colors_line <- c(scales::alpha("blue", 0.9),
+                 scales::alpha("gold", 0.9),
+                 scales::alpha("tomato", 0.9))
+
+# Create plot
+radarchart(datamu, 
+           seg = 4,  # Number of axis segments
+           title = "Performance of the MU Forward Trio",
+           pcol = colors_line,
+           pfcol = colors_fill,
+           plwd = 4,
+           plty = c(1,1,1),
+           vlabels = c("Pass Accuracy", "Dribble Success Rate", "Shots Accuracy", "Conversion Rate", "Forward Pass Rate"),
+           vlcex = 0.9)
+
+# Add a legend
+legend(x=1, 
+       y=1.15, 
+       legend = rownames(datamu[-c(1,2),]), 
+       bty = "n", pch=20 , col = colors_line, cex = 1.05, pt.cex = 3)
+
+#Barplot comparison of Messi and Rooney
+
+radarvs <- rbind(radar2, radarmu2)
+radarvs2 <- melt(radarvs, id.vars = "player.name")
+radarvsrm <- radarvs2[(radarvs2$player.name %in% c("Wayne Rooney", "Lionel Messi") & radarvs2$variable %in% c("n.x", "forward", "n.y", "n")),]
+
+ggplot(radarvsrm, aes(variable, value, fill = player.name)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Comparison of Messi and Rooney's performance in the UCL Final",
+        subtitle = "Messi performs better in every aspects",
+        x = "Metrics",
+        y = "Count",
+       fill = "Player") +
+  scale_x_discrete(labels = c("No. Pass", "No. Forward Pass", "No. Shots", "No. Dribbles")) +
+  theme_classic() +
+  geom_label(aes(label = value), vjust = 0.5, position = position_dodge(0.9), color = "black", fontface = "bold", size = 4, show.legend = FALSE) +
+  theme(legend.position = c(0.8, 0.7))
+
+#Radar comparison of Messi and Rooney
+
+radarvs <- radarvs[(radarvs$player.name %in% c("Wayne Rooney", "Lionel Messi")),]
+
+datavs <- data.frame(Pass_Accuracy = c(100, 0, radarvs$pass_acc),
+                     Dribble_Success_Rate = c(100, 0, radarvs$dribble_rate),
+                     Shots_Accuracy = c(100, 0, radarvs$shot_acc),
+                     Conversion_Rate = c(100, 0, radarvs$conversion_rate),
+                     Forward_Pass_Rate = c(100, 0, radarvs$forward_pass),
+                     row.names = c("max", "min", "Messi", "Rooney"))
+
+# Define fill colors
+colors_fill <- c(scales::alpha("red", 0.1),
+                 scales::alpha("blue", 0.1))
+
+# Define line colors
+colors_line <- c(scales::alpha("red", 0.9),
+                 scales::alpha("blue", 0.9))
+
+# Create plot
+radarchart(datavs, 
+           seg = 4,  # Number of axis segments
+           title = "Messi vs Rooney",
+           pcol = colors_line,
+           pfcol = colors_fill,
+           plwd = 4,
+           plty = c(1,1),
+           vlabels = c("Pass Accuracy", "Dribble Success Rate", "Shots Accuracy", "Conversion Rate", "Forward Pass Rate"),
+           vlcex = 0.9)
+
+# Add a legend
+legend(x=1, 
+       y=1.15, 
+       legend = rownames(datavs[-c(1,2),]), 
        bty = "n", pch=20 , col = colors_line, cex = 1.05, pt.cex = 3)
 
 # xG (expected goals) -----------------------------------------------------
