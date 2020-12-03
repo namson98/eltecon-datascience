@@ -1,0 +1,762 @@
+---
+# title: "Final Project"
+# author: "Kovács Ádám József, Nguyen Nam Son"
+# date: "04/12/2020"
+---
+  
+# Setup -------------------------------------------------------------------
+
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+pacman::p_load(tidyverse, data.table, ggplot2, scales,
+               StatsBombR, SBpitch, soccermatics,
+               extrafont, ggupset, tibbletime,
+               ggtext, ggrepel, glue, patchwork,
+               cowplot, gtable, grid, magick, fmsb)
+
+## loading fonts
+loadfonts(device = "win", quiet = TRUE)
+
+matches <- FreeMatches(FreeCompetitions())
+
+df <- get.matchFree(subset(matches, match_id == 18236))
+
+wd <- file.path("~", "eltecon-datascience")
+setwd(wd)
+
+#setwd("C:\\ELTECON\\eltecon-datascience")
+
+## Cleaning
+
+# EDA ---------------------------------------------------------------------
+
+df <- allclean(df)
+
+bar <- df %>% filter(team.name == "Barcelona")
+
+unique(bar$player.name)
+
+df_clean <- df %>% 
+  mutate(player.name = case_when(
+    player.name == "Lionel Andrés Messi Cuccittini" ~  "Lionel Messi",
+    player.name == "Eric-Sylvain Bilal Abidal" ~ "Eric Abidal",
+    player.name == "Sergio Busquets i Burgos" ~ "Sergio Busquets",
+    player.name == "Daniel Alves da Silva" ~ "Dani Alves",
+    player.name == "Xavier Hernández Creus" ~ "Xavi",
+    player.name == "Víctor Valdés Arribas" ~ "Victor Valdes",
+    player.name == "Javier Alejandro Mascherano" ~ "Javier Mascherano",
+    player.name == "David Villa Sánchez" ~ "David Villa",
+    player.name == "Andrés Iniesta Luján" ~ "Andres Iniesta",
+    player.name == "Gerard Piqué Bernabéu" ~ "Gerard Pique",
+    player.name == "Pedro Eliezer Rodríguez Ledesma" ~ "Pedro",
+    player.name == "Seydou Kéita" ~ "Keita",
+    player.name == "Carles Puyol i Saforcada" ~ "Carles Puyol"))
+
+df_clean <- df_clean %>% 
+  mutate(pass.recipient.name = case_when(
+    pass.recipient.name == "Lionel Andrés Messi Cuccittini" ~  "Lionel Messi",
+    pass.recipient.name == "Eric-Sylvain Bilal Abidal" ~ "Eric Abidal",
+    pass.recipient.name == "Sergio Busquets i Burgos" ~ "Sergio Busquets",
+    pass.recipient.name == "Daniel Alves da Silva" ~ "Dani Alves",
+    pass.recipient.name == "Xavier Hernández Creus" ~ "Xavi",
+    pass.recipient.name == "Víctor Valdés Arribas" ~ "Victor Valdes",
+    pass.recipient.name == "Javier Alejandro Mascherano" ~ "Javier Mascherano",
+    pass.recipient.name == "David Villa Sánchez" ~ "David Villa",
+    pass.recipient.name == "Andrés Iniesta Luján" ~ "Andres Iniesta",
+    pass.recipient.name == "Gerard Piqué Bernabéu" ~ "Gerard Pique",
+    pass.recipient.name == "Pedro Eliezer Rodríguez Ledesma" ~ "Pedro",
+    pass.recipient.name == "Seydou Kéita" ~ "Keita",
+    pass.recipient.name == "Carles Puyol i Saforcada" ~ "Carles Puyol")
+  )
+
+df_clean <- df_clean %>% mutate(shot.statsbomb_xg = if_else(is.na(shot.statsbomb_xg), 
+                                                            0, shot.statsbomb_xg))
+
+df_clean_xg <- df_clean %>% 
+  group_by(team.name) %>% 
+  summarize(tot_xg = sum(shot.statsbomb_xg) %>% signif(digits = 2)) %>% 
+  mutate(team_label = glue::glue("{team.name}: {tot_xg} xG"))
+
+df_clean <- df_clean %>% 
+  left_join(df_clean_xg, by = "team.name") %>% 
+  mutate(player_label = case_when(
+    shot.outcome.name == "Goal" ~ glue::glue("{player.name}: {shot.statsbomb_xg %>%
+                                             signif(digits = 2)} xG"), TRUE ~ ""))
+
+
+# Descriptives ------------------------------------------------------------
+
+
+messi <- df_clean[,c("team.name",
+                     'player.name',
+                     'minute',
+                     'type.name',
+                     'play_pattern.name',
+                     'pass.length',
+                     'pass.cross',
+                     'pass.switch',
+                     'pass.backheel',
+                     'pass.recipient.name',
+                     'pass.shot_assist',
+                     'pass.goal_assist',
+                     'pass.height.name',
+                     'pass.type.name',
+                     'pass.outcome.name', 
+                     'ball_receipt.outcome.name',
+                     'dribble.outcome.name',
+                     'shot.statsbomb_xg',
+                     'shot.outcome.name',
+                     'shot.type.name',
+                     'foul_won.defensive',
+                     'foul_won.advantage',
+                     'location.x',
+                     "pass.end_location.x")] %>%
+  filter(team.name == "Barcelona")
+
+
+passes <- messi %>% filter(type.name == 'Pass' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+    summarise(n = n(),
+              avg_length = mean(pass.length),
+              unsuccessful = sum(pass.outcome.name %in% c('Incomplete', 'Out')),
+              successful = n - unsuccessful,
+              crosses = sum(!is.na(pass.cross)),
+              switch = sum(!is.na(pass.switch)),
+              backheel = sum(!is.na(pass.backheel)),
+              shot_assist = sum(!is.na(pass.shot_assist)),
+              assist = sum(!is.na(pass.goal_assist)),
+              forward = sum(pass.end_location.x > location.x))
+passes
+
+passes2<-passes %>%
+  select(1, 4:5)%>%
+    pivot_longer(-player.name, names_to = "variable", values_to = "value") %>%
+      na.omit()
+
+ggplot(passes2, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variable))) + 
+  geom_bar(stat="identity", colour="white")+
+  labs(title = "Passes", subtitle = "UCL Final 2011-12",
+       x="Players",y ='', caption ="Unsuccessful = Incomplete or out") +
+  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", colour = "white"),
+        plot.background = element_rect(fill = "white", colour ="white"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
+        plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
+        plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
+        text=element_text(family="Source Sans Pro"),
+        legend.title=element_blank(),
+        legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        legend.position = "bottom") + 
+  scale_fill_manual(values=c("#3371AC", "#DC2228"), labels = c( "Unsuccessful","Successful")) +
+  coord_flip()+ 
+  guides(fill = guide_legend(reverse = TRUE)) 
+
+
+shots <- messi %>% filter(type.name == 'Shot' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+    summarise(n = n(),
+              offtarget = sum(shot.outcome.name == "Off T"),
+              blocked = sum(shot.outcome.name == "Blocked"),
+              goal = sum(shot.outcome.name == "Goal"),
+              saved = sum(shot.outcome.name == "Saved"))
+
+shots
+
+shots2<-shots %>%
+  select(1, 3:6) %>%
+    pivot_longer(-player.name, names_to = "variable", values_to = "value") %>%
+      na.omit()
+
+ggplot(shots2, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variable))) + 
+  geom_bar(stat="identity", colour="white")+
+  labs(title = "Shots", subtitle = "UCL Final 2011-12",
+       x="Players",y ='')+
+  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", colour = "white"),
+        plot.background = element_rect(fill = "white", colour ="white"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
+        plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
+        plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
+        text=element_text(family="Source Sans Pro"),
+        legend.title=element_blank(),
+        legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        legend.position = "bottom") +
+  scale_fill_manual(values = c("red", "green", "yellow", "blue"), labels = c( "Saved","Off-target","Goal","Blocked")) +
+  coord_flip()+ 
+  guides(fill = guide_legend(reverse = TRUE)) 
+
+dribble <- messi %>% filter(type.name == 'Dribble' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+    summarise(n = n(),
+            successful = sum(dribble.outcome.name == "Complete"),
+            unsuccessful = sum(dribble.outcome.name == "Incomplete"))
+
+dribble
+
+dribble2<-dribble %>%
+  select(1, 3:4) %>%
+    pivot_longer(-player.name, names_to = "variable", values_to = "value") %>%
+      na.omit()
+
+ggplot(dribble2, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variable))) + 
+  geom_bar(stat="identity", colour="white")+
+  labs(title = "Dribbles", subtitle = "UCL Final 2011-12",
+       x="Players",y ='')+
+  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", colour = "white"),
+        plot.background = element_rect(fill = "white", colour ="white"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
+        plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
+        plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
+        text=element_text(family="Source Sans Pro"),
+        legend.title=element_blank(),
+        legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        legend.position = "bottom") +
+  scale_fill_manual(values = c("red", "green"), labels = c("Unsuccessful", "Successful")) +
+  coord_flip()+ 
+  guides(fill = guide_legend(reverse = TRUE)) 
+
+
+foulwon <- messi %>% filter(type.name == 'Foul Won' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+    summarise(n = n())
+
+foulwon
+
+ggplot(foulwon, aes(x =reorder(player.name, n), y = n)) + 
+  geom_bar(stat="identity", colour="white")+
+  labs(title = "Fouls won", subtitle = "UCL Final 2011-12",
+       x="Players",y ='')+
+  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", colour = "white"),
+        plot.background = element_rect(fill = "white", colour ="white"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
+        plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
+        plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
+        text=element_text(family="Source Sans Pro"),
+        legend.title=element_blank(),
+        legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        legend.position = "bottom") +
+  coord_flip()+ 
+  guides(fill = guide_legend(reverse = TRUE)) 
+
+radar <- left_join(passes, shots, by = "player.name") %>% left_join(., dribble, by = "player.name") %>% na.omit()
+radar$pass_acc <- (radar$successful.x / radar$n.x) * 100
+radar$shot_acc <- ((radar$goal + radar$saved) / radar$n.y) * 100
+radar$conversion_rate <- (radar$goal / radar$n.y) * 100
+radar$dribble_rate <- (radar$successful.y / radar$n) * 100
+radar$forward_pass <- (radar$forward/radar$n.x) * 100
+radar2 <- radar[c(3:5),]
+
+# Construct the data set
+data <- data.frame(Pass_Accuracy = c(100, 0, radar2$pass_acc),
+                   Dribble_Success_Rate = c(100, 0, radar2$dribble_rate),
+                   Shots_Accuracy = c(100, 0, radar2$shot_acc),
+                   Conversion_Rate = c(100, 0, radar2$conversion_rate),
+                   Forward_Pass_Rate = c(100, 0, radar2$forward_pass),
+                   row.names = c("max", "min", "David Villa", "Messi", "Pedro"))
+
+# Define fill colors
+colors_fill <- c(scales::alpha("gray", 0.1),
+                 scales::alpha("gold", 0.1),
+                 scales::alpha("tomato", 0.1))
+
+# Define line colors
+colors_line <- c(scales::alpha("blue", 0.9),
+                 scales::alpha("gold", 0.9),
+                 scales::alpha("tomato", 0.9))
+
+# Create plot
+radarchart(data, 
+           seg = 4,  # Number of axis segments
+           title = "Performance of the Forward Trio",
+           pcol = colors_line,
+           pfcol = colors_fill,
+           plwd = 4,
+           plty = c(1,1,1),
+           vlabels = c("Pass Accuracy", "Dribble Success Rate", "Shots Accuracy", "Conversion Rate", "Forward Pass Rate"),
+           vlcex = 0.7)
+
+# Add a legend
+legend(x=1, 
+       y=1.15, 
+       legend = rownames(data[-c(1,2),]), 
+       bty = "n", pch=20 , col = colors_line, cex = 1.05, pt.cex = 3)
+
+# xG (expected goals) -----------------------------------------------------
+
+windowsFonts(robotoc = windowsFont("Roboto Condensed"))
+
+ucl11_xg_timelineplot <- df_clean %>% 
+  ggplot() +
+  geom_segment(x = 0, xend = 95,
+               y = 0, yend = 0) +
+  geom_rect(data = df_clean %>% filter(shot.outcome.name == "Goal"),
+            aes(xmin = minute - 2, xmax = minute + 2,
+                ymin = -0.005, ymax = 0.005), 
+            alpha = 0.3, fill = "green") +
+  geom_label_repel(data = df_clean %>% filter(shot.outcome.name == "Goal"),
+                   aes(x = minute, y = 0,
+                       color = team.name, label = player_label), 
+                   nudge_x = 4, nudge_y = 0.003, family = "robotoc",
+                   show.legend = FALSE) +
+  geom_point(data = df_clean %>% filter(shot.statsbomb_xg != 0),
+             shape = 21, stroke = 1.5,
+             aes(x = minute, y = 0, 
+                 size = shot.statsbomb_xg, fill = team.name)) +
+  scale_color_manual(values = c("Barcelona" = "#a50044",
+                                "Manchester United" = "black")) +
+  scale_fill_manual(values = c("Barcelona" = "#a50044",
+                               "Manchester United" = "white")) +
+  facet_wrap(vars(team_label), ncol = 1) +
+  scale_x_continuous(breaks = seq(0, 95, by = 5),
+                     labels = c(seq(0, 40, by = 5), "HT", 
+                                seq(50, 90, by = 5), "FT"),
+                     limits = c(-3, 95),
+                     expand = c(0.01, 0)) +
+  scale_y_continuous(limits = c(-0.005, 0.005),
+                     expand = c(0, 0)) +
+  scale_size(range = c(2, 6)) +
+  labs(caption = "By Kovács Ádám, Nguyen N. Son") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        strip.text = element_text(size = 16, family = "robotoc", 
+                                  face = "bold", color = "grey20"),
+        plot.caption = element_text(family = "robotoc", color = "grey20",
+                                    hjust = 0),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+
+ucl11_xg_timelineplot
+
+# xGA ---------------------------------------------------------------------
+
+xGA = df_clean %>%
+  filter(type.name=="Shot") %>%
+    select(shot.key_pass_id, xGA = shot.statsbomb_xg)
+
+shot_assists = left_join(df_clean, xGA, by = c("id" = "shot.key_pass_id")) %>%
+  select(team.name, player.name, player.id, type.name, pass.shot_assist, pass.goal_assist, xGA) %>%
+    filter(pass.shot_assist==TRUE | pass.goal_assist==TRUE) #5
+
+player_xGA = shot_assists %>%
+  group_by(player.name, player.id, team.name) %>%
+    summarise(xGA = sum(xGA, na.rm = TRUE)) 
+
+player_xG = df_clean %>%
+  filter(type.name=="Shot") %>%
+    filter(shot.type.name!="Penalty" | is.na(shot.type.name)) %>%
+      group_by(player.name, player.id, team.name) %>%
+        summarise(xG = sum(shot.statsbomb_xg, na.rm = TRUE)) %>%
+          left_join(player_xGA) %>%
+            mutate(xG_xGA = sum(xG+xGA, na.rm =TRUE)) 
+
+player_minutes = get.minutesplayed(df_clean)
+
+player_minutes = player_minutes %>%
+  group_by(player.id) %>%
+    summarise(minutes = sum(MinutesPlayed))
+
+player_xG_xGA = left_join(player_xG, player_minutes) %>%
+  mutate(nineties = minutes/90,
+         xG_90 = round(xG/nineties, 2),
+         xGA_90 = round(xGA/nineties,2),
+         xG_xGA90 = round(xG_xGA/nineties,2))
+
+chart = player_xG_xGA %>%
+  ungroup() %>%
+    top_n(n = 15, w = xG_xGA90)
+
+chart<-chart %>%
+  select(1, 10:11)%>%
+    pivot_longer(-player.name, names_to = "variable", values_to = "value") %>%
+      na.omit()
+
+ggplot(chart, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variable))) + #1 
+  geom_bar(stat="identity", colour="white")+
+  labs(title = "Expected Goal Contribution", subtitle = "UCL Final 2011-12",
+       x="", y="Per 90",caption ="nNPxG = Value of shots taken (no penalties)\nxG assisted = Value of shots assisted")+
+  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", colour = "white"),
+        plot.background = element_rect(fill = "white", colour ="white"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
+        plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
+        plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
+        text=element_text(family="Source Sans Pro"),
+        legend.title=element_blank(),
+        legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
+        legend.position = "bottom") + #2 
+  scale_fill_manual(values=c("#3371AC", "#DC2228"), labels = c( "xG Assisted","NPxG")) + #3
+  scale_y_continuous(expand = c(0, 0), limits= c(0,max(chart$value) + 0.3)) + #4
+  coord_flip()+ #5
+  guides(fill = guide_legend(reverse = TRUE)) #6
+
+##Shot map
+
+shots = df_clean %>%
+  filter(type.name=="Shot" & (shot.type.name!="Penalty" | is.na(shot.type.name)) & player.name=="Lionel Messi")
+
+shotmapxgcolors <- c("#192780", "#2a5d9f", "#40a7d0", "#87cdcf", "#e7f8e6", "#f4ef95", "#FDE960", "#FCDC5F",
+                     "#F5B94D", "#F0983E", "#ED8A37", "#E66424", "#D54F1B", "#DC2608", "#BF0000", "#7F0000", "#5F0000") #2
+
+ggplot() +
+  annotate("rect",xmin = 0, xmax = 120, ymin = 0, ymax = 80, fill = NA, colour = "black", size = 0.6) +
+  annotate("rect",xmin = 0, xmax = 60, ymin = 0, ymax = 80, fill = NA, colour = "black", size = 0.6) +
+  annotate("rect",xmin = 18, xmax = 0, ymin = 18, ymax = 62, fill = NA, colour = "black", size = 0.6) +
+  annotate("rect",xmin = 102, xmax = 120, ymin = 18, ymax = 62, fill = NA, colour = "black", size = 0.6) +
+  annotate("rect",xmin = 0, xmax = 6, ymin = 30, ymax = 50, fill = NA, colour = "black", size = 0.6) +
+  annotate("rect",xmin = 120, xmax = 114, ymin = 30, ymax = 50, fill = NA, colour = "black", size = 0.6) +
+  annotate("rect",xmin = 120, xmax = 120.5, ymin =36, ymax = 44, fill = NA, colour = "black", size = 0.6) +
+  annotate("rect",xmin = 0, xmax = -0.5, ymin =36, ymax = 44, fill = NA, colour = "black", size = 0.6) +
+  annotate("segment", x = 60, xend = 60, y = -0.5, yend = 80.5, colour = "black", size = 0.6)+
+  annotate("segment", x = 0, xend = 0, y = 0, yend = 80, colour = "black", size = 0.6)+
+  annotate("segment", x = 120, xend = 120, y = 0, yend = 80, colour = "black", size = 0.6)+
+  theme(rect = element_blank(),
+        line = element_blank()) +
+  # add penalty spot right
+  annotate("point", x = 108 , y = 40, colour = "black", size = 1.05) +
+  annotate("path", colour = "black", size = 0.6,
+           x=60+10*cos(seq(0,2*pi,length.out=2000)),
+           y=40+10*sin(seq(0,2*pi,length.out=2000)))+
+  # add centre spot
+  annotate("point", x = 60 , y = 40, colour = "black", size = 1.05) +
+  annotate("path", x=12+10*cos(seq(-0.3*pi,0.3*pi,length.out=30)), size = 0.6,
+           y=40+10*sin(seq(-0.3*pi,0.3*pi,length.out=30)), col="black") +
+  annotate("path", x=107.84-10*cos(seq(-0.3*pi,0.3*pi,length.out=30)), size = 0.6,
+           y=40-10*sin(seq(-0.3*pi,0.3*pi,length.out=30)), col="black") +
+  geom_point(data = shots, aes(x = location.x, y = location.y, fill = shot.statsbomb_xg, shape = shot.body_part.name),
+             size = 6, alpha = 0.8) + #3
+  theme(axis.text.x=element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.caption=element_text(size=13,family="Source Sans Pro", hjust=0.5, vjust=0.5),
+        plot.subtitle = element_text(size = 18, family="Source Sans Pro", hjust = 0.5),
+        axis.text.y=element_blank(),
+        legend.position = "top",
+        legend.title=element_text(size=10,family="Source Sans Pro"),
+        legend.text=element_text(size=10,family="Source Sans Pro"),
+        legend.margin = margin(c(10, 5, -30, 20)),
+        legend.key.size = unit(1.0, "cm"),
+        plot.title = element_text(margin = margin(r = 10, b = 10), face="bold",size = 32.5, family="Source Sans Pro", colour = "black", hjust = 0.5),
+        legend.direction = "horizontal",
+        axis.ticks=element_blank(),
+        aspect.ratio = c(65/100),
+        plot.background = element_rect(fill = "white"),
+        strip.text.x = element_text(size=13,family="Source Sans Pro")) +
+  labs(title = "Lionel Messi, Shot Map", subtitle = "UCL Final 2011") + #4
+  scale_fill_gradientn(colours = shotmapxgcolors, limit = c(0,0.8), oob=scales::squish, name = "Expected Goals Value") +
+  scale_shape_manual(values = c("Head" = 21, "Right Foot" = 23, "Left Foot" = 24), name ="") + #6
+  guides(fill = guide_colourbar(title.position = "top"), 
+         shape = guide_legend(override.aes = list(size = 7, fill = "black"))) + #7
+  coord_flip(xlim = c(85, 125)) #8
+
+##Plotting shots
+
+create_StatsBomb_ShotMap <- function(grass_colour, line_colour, background_colour, goal_colour){
+  
+  theme_blankPitch = function(size=12) { 
+    theme(
+      #axis.line=element_blank(), 
+      axis.text.x=element_blank(), 
+      axis.text.y=element_blank(), 
+      #axis.ticks.y=element_text(size=size),
+      #   axis.ticks=element_blank(),
+      axis.ticks.length=unit(0, "lines"), 
+      #axis.ticks.margin=unit(0, "lines"), 
+      axis.title.x=element_blank(), 
+      axis.title.y=element_blank(), 
+      legend.background=element_rect(fill=background_colour, colour=NA), 
+      legend.key=element_rect(colour=background_colour,fill=background_colour), 
+      legend.key.size=unit(1.2, "lines"), 
+      legend.text=element_text(size=size), 
+      legend.title=element_text(size=size, face="bold",hjust=0),
+      strip.background = element_rect(colour = background_colour, fill = background_colour, size = .5),
+      panel.background=element_rect(fill=background_colour,colour=background_colour), 
+      #       panel.border=element_blank(), 
+      panel.grid.major=element_blank(), 
+      panel.grid.minor=element_blank(), 
+      panel.spacing=element_blank(), 
+      plot.background=element_blank(), 
+      plot.margin=unit(c(0, 0, 0, 0), "lines"), 
+      plot.title=element_text(size=size*1.2), 
+      strip.text.y=element_text(colour=background_colour,size=size,angle=270),
+      strip.text.x=element_text(size=size*1))}
+  
+  ymin <- 0 # minimum width
+  ymax <- 80 # maximum width
+  xmin <- 60 # minimum length
+  xmax <- 120 # maximum length
+  
+  # Defining features along the length
+  boxEdgeOff <- 102
+  sixYardOff <- 114
+  penSpotOff <- 108
+  halfwayline <- 60
+  
+  # Defining features along the width
+  boxEdgeLeft <- 18
+  boxEdgeRight <- 62
+  sixYardLeft <- 30 
+  sixYardRight <- 50
+  goalPostLeft <- 36
+  goalPostRight <- 44
+  CentreSpot <- 40   
+  
+  # other dimensions
+  centreCirle_d <- 20   
+  
+  ## define the circle function
+  circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
+    r = diameter / 2
+    tt <- seq(0,2*pi,length.out = npoints)
+    xx <- center[1] + r * cos(tt)
+    yy <- center[2] + r * sin(tt)
+    return(data.frame(x = xx, y = yy))
+  }
+  
+  #### create leftD arc ####
+  dArc <- circleFun(c((40),(penSpotOff)),centreCirle_d,npoints = 1000)
+  ## remove part that is in the box
+  dArc <- dArc[which(dArc$y <= (boxEdgeOff)),]
+  
+  ## initiate the plot, set some boundries to the plot
+  p <- ggplot() + xlim(c(ymin,ymax)) + ylim(c(xmin,xmax)) +
+    # add the theme 
+    theme_blankPitch() +
+    # add the base rectangle of the pitch 
+    geom_rect(aes(xmin=ymin, xmax=ymax, ymin=xmin, ymax=xmax), fill = grass_colour, colour = line_colour) +
+    # add the 18 yard box offensive
+    geom_rect(aes(xmin=boxEdgeLeft, xmax=boxEdgeRight, ymin=boxEdgeOff, ymax=xmax), fill = grass_colour, colour = line_colour) +
+    # add the six yard box offensive
+    geom_rect(aes(xmin=sixYardLeft, xmax=sixYardRight, ymin=sixYardOff, ymax=xmax), fill = grass_colour, colour = line_colour) +
+    # add the arc circle 
+    geom_path(data=dArc, aes(x=x,y=y), colour = line_colour) +
+    # add the goal offensive
+    geom_segment(aes(x = goalPostLeft, y = xmax, xend = goalPostRight, yend = xmax),colour = goal_colour, size = 1)
+  
+  return(p)
+  
+}
+
+## plot the base shot map 
+p <- create_StatsBomb_ShotMap("#ffffff", "#A9A9A9", "#ffffff", "#000000")
+
+#filter on data
+
+dat <- df %>% filter(team.name == "Barcelona" & type.name == "Shot" & player.name == "Lionel Andrés Messi Cuccittini")
+## add a goal count to help plotting
+dat$Goal <- ifelse(dat$shot.outcome.name == "Goal","1","0")
+
+p + geom_point(data = dat, aes(x=location.y, y=location.x, size=shot.statsbomb_xg, colour = Goal)) + 
+  theme(legend.position="none") + 
+  scale_colour_manual(values = c("#F1BEBE", "#DF5058")) +
+  geom_text(aes(x = 2, y=68,label = "Lionel Messi"), hjust=0, vjust=0.5, size = 5, colour = "#DF5058") +
+  geom_text(aes(x = 2, y=66,label = paste0("Expected Goals (xG): ",round(sum(dat$shot.statsbomb_xg),2))), hjust=0, vjust=0.5, size = 3) + 
+  geom_text(aes(x = 2, y=64,label = paste0("Actual Goals: ",round(sum(as.numeric(dat$Goal)),0))), hjust=0, vjust=0.5, size = 3) + 
+  geom_text(aes(x = 2, y=62,label = paste0("xG Difference: ",round(sum(as.numeric(dat$Goal)),0)-round(sum(dat$shot.statsbomb_xg),2))), hjust=0, vjust=0.5, size = 3) 
+
+##Creating a pitch
+
+createPitch <- function(grass_colour, line_colour, background_colour, goal_colour, BasicFeatures){
+  
+  theme_blankPitch = function(size=12) { 
+    theme(
+      #axis.line=element_blank(), 
+      axis.text.x=element_blank(), 
+      axis.text.y=element_blank(), 
+      #axis.ticks.y=element_text(size=size),
+      #   axis.ticks=element_blank(),
+      axis.ticks.length=unit(0, "lines"), 
+      #axis.ticks.margin=unit(0, "lines"), 
+      axis.title.x=element_blank(), 
+      axis.title.y=element_blank(), 
+      legend.background=element_rect(fill=background_colour, colour=NA), 
+      legend.key=element_rect(colour=background_colour,fill=background_colour), 
+      legend.key.size=unit(1.2, "lines"), 
+      legend.text=element_text(size=size), 
+      legend.title=element_text(size=size, face="bold",hjust=0),
+      strip.background = element_rect(colour = background_colour, fill = background_colour, size = .5),
+      panel.background=element_rect(fill=background_colour,colour=background_colour), 
+      #       panel.border=element_blank(), 
+      panel.grid.major=element_blank(), 
+      panel.grid.minor=element_blank(), 
+      panel.spacing=element_blank(), 
+      plot.background=element_blank(), 
+      plot.margin=unit(c(0, 0, 0, 0), "lines"), 
+      plot.title=element_text(size=size*1.2), 
+      strip.text.y=element_text(colour=background_colour,size=size,angle=270),
+      strip.text.x=element_text(size=size*1))}
+  
+  ymin <- 0 # minimum width
+  ymax <- 80 # maximum width
+  xmin <- 0 # minimum length
+  xmax <- 120 # maximum length
+  
+  # Defining features along the length
+  boxEdgeDef <- 18
+  boxEdgeOff <- 102
+  halfwayline <- 60
+  sixYardDef <- 6
+  sixYardOff <- 114
+  penSpotDef <- 12
+  penSpotOff <- 108
+  
+  # Defining features along the width
+  boxEdgeLeft <- 18
+  boxEdgeRight <- 62
+  sixYardLeft <- 30 
+  sixYardRight <- 50
+  goalPostLeft <- 36
+  goalPostRight <- 44
+  CentreSpot <- 40   
+  
+  # other dimensions
+  centreCirle_d <- 20     
+  
+  ## define the circle function
+  circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
+    r = diameter / 2
+    tt <- seq(0,2*pi,length.out = npoints)
+    xx <- center[1] + r * cos(tt)
+    yy <- center[2] + r * sin(tt)
+    return(data.frame(x = xx, y = yy))
+  }
+  
+  #### create center circle ####
+  center_circle <- circleFun(c(halfwayline,CentreSpot),centreCirle_d,npoints = 100)
+  
+  
+  
+  if(BasicFeatures == TRUE){
+    ## initiate the plot, set some boundries to the plot
+    p <- ggplot() + xlim(c(xmin-5,xmax+5)) + ylim(c(ymin-5,ymax+5)) +
+      # add the theme 
+      theme_blankPitch() +
+      # add the base rectangle of the pitch 
+      geom_rect(aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill = grass_colour, colour = line_colour) +
+      # add the 18 yard box defensive
+      geom_rect(aes(xmin=xmin, xmax=boxEdgeDef, ymin=boxEdgeLeft, ymax=boxEdgeRight), fill = grass_colour, colour = line_colour) + 
+      # add the 18 yard box offensive
+      geom_rect(aes(xmin=boxEdgeOff, xmax=xmax, ymin=boxEdgeLeft, ymax=boxEdgeRight), fill = grass_colour, colour = line_colour) +
+      # add halway line
+      geom_segment(aes(x = halfwayline, y = ymin, xend = halfwayline, yend = ymax),colour = line_colour) + 
+      # add the goal Defensive
+      geom_segment(aes(x = xmin, y = goalPostLeft, xend = xmin, yend = goalPostRight),colour = goal_colour, size = 1) +
+      # add the goal offensive
+      geom_segment(aes(x = xmax, y = goalPostLeft, xend = xmax, yend = goalPostRight),colour = goal_colour, size = 1)
+    
+  }else{
+    ## initiate the plot, set some boundries to the plot
+    p <- ggplot() + xlim(c(xmin-5,xmax+5)) + ylim(c(ymin-5,ymax+5)) +
+      # add the theme 
+      theme_blankPitch() +
+      # add the base rectangle of the pitch 
+      geom_rect(aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill = grass_colour, colour = line_colour) +
+      # add the 18 yard box defensive
+      geom_rect(aes(xmin=xmin, xmax=boxEdgeDef, ymin=boxEdgeLeft, ymax=boxEdgeRight), fill = grass_colour, colour = line_colour) + 
+      # add the 18 yard box offensive
+      geom_rect(aes(xmin=boxEdgeOff, xmax=xmax, ymin=boxEdgeLeft, ymax=boxEdgeRight), fill = grass_colour, colour = line_colour) +
+      # add halway line
+      geom_segment(aes(x = halfwayline, y = ymin, xend = halfwayline, yend = ymax),colour = line_colour) +
+      # add the six yard box Defensive
+      geom_rect(aes(xmin=xmin, xmax=sixYardDef, ymin=sixYardLeft, ymax=sixYardRight), fill = grass_colour, colour = line_colour)  +
+      # add the six yard box offensive
+      geom_rect(aes(xmin=sixYardOff, xmax=xmax, ymin=sixYardLeft, ymax=sixYardRight), fill = grass_colour, colour = line_colour) +
+      # add centre circle 
+      geom_path(data=center_circle, aes(x=x,y=y), colour = line_colour) +
+      # add penalty spot left 
+      geom_point(aes(x = penSpotDef , y = CentreSpot), colour = line_colour) + 
+      # add penalty spot right
+      geom_point(aes(x = penSpotOff , y = CentreSpot), colour = line_colour) + 
+      # add centre spot 
+      geom_point(aes(x = halfwayline , y = CentreSpot), colour = line_colour) + 
+      # add the goal Defensive
+      geom_segment(aes(x = xmin, y = goalPostLeft, xend = xmin, yend = goalPostRight),colour = goal_colour, size = 1) +
+      # add the goal offensive
+      geom_segment(aes(x = xmax, y = goalPostLeft, xend = xmax, yend = goalPostRight),colour = goal_colour, size = 1) 
+  }
+  
+  return(p)
+  
+}
+
+##Passes
+
+## removing NAs from the pass.outcome.name and pass.type.name columns 
+df$pass.outcome.name <- ifelse(is.na(df$pass.outcome.name), "Complete", as.character(df$pass.outcome.name))
+df$pass.type.name <- ifelse(is.na(df$pass.type.name),"-",as.character(df$pass.type.name))
+
+## Filter out by our criteria 
+passes <- df %>% filter(type.name == "Pass")
+
+#get the passes of the two teams in seperate dataframes
+
+barcapasses<- passes%>%filter(team.name=='Barcelona')
+
+mupasses<- passes%>%filter(team.name=='Manchester United')
+
+weightbarca <- barcapasses %>% 
+  group_by(player.name, pass.recipient.name) %>% 
+  summarise(weight=n())
+
+Messipasses <- df %>% filter(type.name == "Pass", player.name == "Lionel Andrés Messi Cuccittini") 
+
+Messicarry <- df_clean %>% filter (type.name == 'Carry', player.name == 'Lionel Messi')
+
+Messicarry$under_pressure <- ifelse(is.na(Messicarry$under_pressure), FALSE, TRUE)
+
+Messidispos <- df_clean %>% filter(type.name == 'Dispossessed', player.name == 'Lionel Messi')
+
+Messidribble <- df_clean %>% filter(type.name == 'Dribble', player.name == 'Lionel Messi')
+
+##Pass plot
+
+p <- createPitch("#ffffff", "#A9A9A9", "#ffffff", "#000000", BasicFeatures=FALSE) +
+  geom_point(data = Messipasses, aes(x = ifelse(pass.end_location.x>location.x, location.x,NA), y = location.y), alpha = 0.7) +
+  geom_segment(data = Messipasses, aes(x = ifelse(pass.end_location.x>location.x,location.x,NA), y = location.y, xend = pass.end_location.x, yend = pass.end_location.y, colour = pass.outcome.name),alpha = 0.7, arrow = arrow(length = unit(0.08,"inches"))) +
+  scale_colour_manual(values = c("blue", "red", "green") , name = "Outcome") +
+  scale_y_reverse()+ labs(title = "Progressive passes of Messi", subtitle = 'vs Manchester United')
+
+p
+
+
+p2 <- createPitch("#ffffff", "#A9A9A9", "#ffffff", "#000000", BasicFeatures=FALSE) +
+  geom_point(data = Messicarry, aes(x = ifelse(carry.end_location.x>location.x, location.x,NA), y = location.y), alpha = 0.7) + geom_segment(data = Messicarry, aes(x = ifelse(carry.end_location.x>location.x,location.x,NA), y = location.y, xend = carry.end_location.x, yend = carry.end_location.y, colour = under_pressure),alpha = 0.7, arrow = arrow(length = unit(0.08,"inches"))) +
+  scale_colour_manual(values = c("blue", "red") , name = "Under Pressure") +
+  scale_y_reverse()+ labs(title = "Ball carry of Messi", subtitle = 'vs Manchester United') +
+  geom_point(data = Messidispos, aes(x = location.x, y = location.y), shape = '^', colour = 'yellow', size = 10) + geom_point(data = Messidribble, aes(x = location.x, y = location.y), shape = 'o', size = 5, colour = 'black') + scale_colour_manual(values = c("blue", "red") , name = "Under Pressure") +
+  scale_shape_manual(values = c("^", "o"), name = "Actions")
+
+p2 
+
+p2 <- createPitch("#ffffff", "#A9A9A9", "#ffffff", "#000000", BasicFeatures=FALSE) +
+  geom_point(data = Messicarry, aes(x = ifelse(carry.end_location.x>location.x, location.x,NA), y = location.y), alpha = 0.7) + geom_segment(data = Messicarry, aes(x = ifelse(carry.end_location.x>location.x,location.x,NA), y = location.y, xend = carry.end_location.x, yend = carry.end_location.y, colour = under_pressure),alpha = 0.7, arrow = arrow(length = unit(0.08,"inches"))) +
+  scale_colour_manual(values = c("blue", "red") , name = "Under Pressure") +
+  scale_y_reverse()+ labs(title = "Ball carry of Messi", subtitle = 'vs Manchester United')
+
+p2 
+
