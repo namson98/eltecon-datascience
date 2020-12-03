@@ -7,7 +7,6 @@ output: html_document
 
 ```{r setup, message = FALSE, warning = FALSE}
 
-knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(out.width = '90%')
@@ -38,7 +37,7 @@ setwd(wd)
 
 ## Cleaning
 
-```{r cars, message = FALSE, warning = FALSE, echo = FALSE}
+```{r cars, message = FALSE, warning = FALSE}
 
 df <- allclean(df)
 
@@ -94,10 +93,169 @@ df_clean <- df_clean %>%
                                              signif(digits = 2)} xG"), TRUE ~ ""))
 
 ```
+**Barcharts**
+
+```{r descriptive}
+
+messi <- df_clean[,c("team.name", 'player.name', 'minute', 'type.name', 'play_pattern.name', 'pass.length','pass.cross','pass.switch', 'pass.backheel', 'pass.recipient.name','pass.shot_assist', 'pass.goal_assist', 'pass.height.name', 'pass.type.name','pass.outcome.name', 'ball_receipt.outcome.name', 'dribble.outcome.name', 'shot.statsbomb_xg', 'shot.outcome.name', 'shot.type.name', 'foul_won.defensive', 'foul_won.advantage')] %>%
+  filter(team.name == "Barcelona")
+
+```
+
+```{r}
+passes <- messi %>% filter(type.name == 'Pass' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+  summarise(n = n(), avg_length = mean(pass.length), unsuccessful = sum(pass.outcome.name %in% c('Incomplete', 'Out')), successful = n - unsuccessful, crosses = sum(!is.na(pass.cross)),switch = sum(!is.na(pass.switch)), backheel = sum(!is.na(pass.backheel)), shot_assist = sum(!is.na(pass.shot_assist)), assist = sum(!is.na(pass.goal_assist)))
+
+passes
+```
+
+
+```{r passplot2}
+
+passes2<-passes %>%
+select(1, 4:5)%>%
+pivot_longer(-player.name, names_to = "variable", values_to = "value") %>%
+na.omit()
+
+ggplot(passes2, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variable))) + 
+  geom_bar(stat="identity", colour="white")+
+  labs(title = "Passes", subtitle = "UCL Final 2011-12",
+  x="Players",y ='', caption ="Unsuccessful = Incomplete or out")+
+  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.ticks = element_blank(),
+  panel.background = element_rect(fill = "white", colour = "white"),
+  plot.background = element_rect(fill = "white", colour ="white"),
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
+  plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
+  plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
+  text=element_text(family="Source Sans Pro"),
+  legend.title=element_blank(),
+  legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  legend.position = "bottom") + 
+  scale_fill_manual(values=c("#3371AC", "#DC2228"), labels = c( "Unsuccessful","Successful")) +
+  coord_flip()+ 
+  guides(fill = guide_legend(reverse = TRUE)) 
+
+```
+
+
+```{r}
+shots <- messi %>% filter(type.name == 'Shot' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+  summarise(n = n(), offtarget = sum(shot.outcome.name == "Off T"), blocked = sum(shot.outcome.name == "Blocked"), goal = sum(shot.outcome.name == "Goal"), saved = sum(shot.outcome.name == "Saved"))
+
+shots
+```
+
+```{r shots2}
+
+shots2<-shots %>%
+  select(1, 3:6) %>%
+    pivot_longer(-player.name, names_to = "variable", values_to = "value") %>%
+      na.omit()
+
+ggplot(shots2, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variable))) + 
+  geom_bar(stat="identity", colour="white")+
+  labs(title = "Shots", subtitle = "UCL Final 2011-12",
+  x="Players",y ='')+
+  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.ticks = element_blank(),
+  panel.background = element_rect(fill = "white", colour = "white"),
+  plot.background = element_rect(fill = "white", colour ="white"),
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
+  plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
+  plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
+  text=element_text(family="Source Sans Pro"),
+  legend.title=element_blank(),
+  legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  legend.position = "bottom") +
+  scale_fill_manual(values = c("red", "green", "yellow", "blue"), labels = c( "Saved","Off-target","Goal","Blocked")) +
+  coord_flip()+ 
+  guides(fill = guide_legend(reverse = TRUE)) 
+
+```
+```{r}
+dribble <- messi %>% filter(type.name == 'Dribble' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+    summarise(n = n(), successful = sum(dribble.outcome.name == "Complete"), unsuccessful = sum(dribble.outcome.name == "Incomplete"))
+
+dribble
+```
+
+```{r dribble2}
+
+dribble2<-dribble %>%
+  select(1, 3:4) %>%
+    pivot_longer(-player.name, names_to = "variable", values_to = "value") %>%
+      na.omit()
+
+ggplot(dribble2, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variable))) + 
+  geom_bar(stat="identity", colour="white")+
+  labs(title = "Dribbles", subtitle = "UCL Final 2011-12",
+  x="Players",y ='')+
+  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.ticks = element_blank(),
+  panel.background = element_rect(fill = "white", colour = "white"),
+  plot.background = element_rect(fill = "white", colour ="white"),
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
+  plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
+  plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
+  text=element_text(family="Source Sans Pro"),
+  legend.title=element_blank(),
+  legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  legend.position = "bottom") +
+  scale_fill_manual(values = c("red", "green"), labels = c("Unsuccessful", "Successful")) +
+  coord_flip()+ 
+  guides(fill = guide_legend(reverse = TRUE)) 
+
+```
+
+```{r}
+foulwon <- messi %>% filter(type.name == 'Foul Won' & player.name != is.na(player.name)) %>%
+  group_by(player.name) %>% 
+    summarise(n = n())
+
+foulwon
+```
+
+```{r foulwon}
+
+ggplot(foulwon, aes(x =reorder(player.name, n), y = n)) + 
+  geom_bar(stat="identity", colour="white")+
+  labs(title = "Fouls won", subtitle = "UCL Final 2011-12",
+  x="Players",y ='')+
+  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  axis.ticks = element_blank(),
+  panel.background = element_rect(fill = "white", colour = "white"),
+  plot.background = element_rect(fill = "white", colour ="white"),
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
+  plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
+  plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
+  text=element_text(family="Source Sans Pro"),
+  legend.title=element_blank(),
+  legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
+  legend.position = "bottom") +
+  coord_flip()+ 
+  guides(fill = guide_legend(reverse = TRUE)) 
+
+```
 
 ## xG (xpected goals) over time
 
-```{r pressure, echo=FALSE}
+```{r pressure}
 
 windowsFonts(robotoc = windowsFont("Roboto Condensed"))
 
@@ -149,7 +307,7 @@ ucl11_xg_timelineplot
 
 ##XGA
 
-```{r xga, message = FALSE, warning = FALSE, echo = FALSE}
+```{r xga, message = FALSE, warning = FALSE}
 
 xGA = df_clean %>%
   filter(type.name=="Shot") %>%
@@ -219,7 +377,7 @@ ggplot(chart, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variab
 
 ##Shot map
 
-```{r shot, message = FALSE, warning = FALSE, echo = FALSE}
+```{r shot, message = FALSE, warning = FALSE}
 shots = df_clean %>%
   filter(type.name=="Shot" & (shot.type.name!="Penalty" | is.na(shot.type.name)) & player.name=="Lionel Messi")
 
@@ -586,161 +744,4 @@ p2 <- createPitch("#ffffff", "#A9A9A9", "#ffffff", "#000000", BasicFeatures=FALS
   scale_y_reverse()+ labs(title = "Ball carry of Messi", subtitle = 'vs Manchester United')
 
 p2 
-```
-```{r descriptive}
-
-messi <- df_clean[,c("team.name", 'player.name', 'minute', 'type.name', 'play_pattern.name', 'pass.length','pass.cross','pass.switch', 'pass.backheel', 'pass.recipient.name','pass.shot_assist', 'pass.goal_assist', 'pass.height.name', 'pass.type.name','pass.outcome.name', 'ball_receipt.outcome.name', 'dribble.outcome.name', 'shot.statsbomb_xg', 'shot.outcome.name', 'shot.type.name', 'foul_won.defensive', 'foul_won.advantage')] %>%
-  filter(team.name == "Barcelona")
-
-```
-
-```{r}
-passes <- messi %>% filter(type.name == 'Pass' & player.name != is.na(player.name)) %>%
-  group_by(player.name) %>% 
-  summarise(n = n(), avg_length = mean(pass.length), unsuccessful = sum(pass.outcome.name %in% c('Incomplete', 'Out')), successful = n - unsuccessful, crosses = sum(!is.na(pass.cross)),switch = sum(!is.na(pass.switch)), backheel = sum(!is.na(pass.backheel)), shot_assist = sum(!is.na(pass.shot_assist)), assist = sum(!is.na(pass.goal_assist)))
-
-passes
-```
-
-
-```{r passplot2}
-
-passes2<-passes %>%
-select(1, 4:5)%>%
-pivot_longer(-player.name, names_to = "variable", values_to = "value") %>%
-na.omit()
-
-ggplot(passes2, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variable))) + 
-  geom_bar(stat="identity", colour="white")+
-  labs(title = "Passes", subtitle = "UCL Final 2011-12",
-  x="Players",y ='', caption ="Unsuccessful = Incomplete or out")+
-  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.ticks = element_blank(),
-  panel.background = element_rect(fill = "white", colour = "white"),
-  plot.background = element_rect(fill = "white", colour ="white"),
-  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
-  plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
-  plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
-  text=element_text(family="Source Sans Pro"),
-  legend.title=element_blank(),
-  legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  legend.position = "bottom") + 
-  scale_fill_manual(values=c("#3371AC", "#DC2228"), labels = c( "Unsuccessful","Successful")) +
-  coord_flip()+ 
-  guides(fill = guide_legend(reverse = TRUE)) 
-
-```
-
-
-```{r}
-shots <- messi %>% filter(type.name == 'Shot' & player.name != is.na(player.name)) %>%
-  group_by(player.name) %>% 
-  summarise(n = n(), offtarget = sum(shot.outcome.name == "Off T"), blocked = sum(shot.outcome.name == "Blocked"), goal = sum(shot.outcome.name == "Goal"), saved = sum(shot.outcome.name == "Saved"))
-
-shots
-```
-
-```{r shots2}
-
-shots2<-shots %>%
-  select(1, 3:6) %>%
-    pivot_longer(-player.name, names_to = "variable", values_to = "value") %>%
-      na.omit()
-
-ggplot(shots2, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variable))) + 
-  geom_bar(stat="identity", colour="white")+
-  labs(title = "Shots", subtitle = "UCL Final 2011-12",
-  x="Players",y ='')+
-  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.ticks = element_blank(),
-  panel.background = element_rect(fill = "white", colour = "white"),
-  plot.background = element_rect(fill = "white", colour ="white"),
-  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
-  plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
-  plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
-  text=element_text(family="Source Sans Pro"),
-  legend.title=element_blank(),
-  legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  legend.position = "bottom") +
-  scale_fill_manual(values = c("red", "green", "yellow", "blue"), labels = c( "Saved","Off-target","Goal","Blocked")) +
-  coord_flip()+ 
-  guides(fill = guide_legend(reverse = TRUE)) 
-
-```
-```{r}
-dribble <- messi %>% filter(type.name == 'Dribble' & player.name != is.na(player.name)) %>%
-  group_by(player.name) %>% 
-    summarise(n = n(), successful = sum(dribble.outcome.name == "Complete"), unsuccessful = sum(dribble.outcome.name == "Incomplete"))
-
-dribble
-```
-
-```{r dribble2}
-
-dribble2<-dribble %>%
-  select(1, 3:4) %>%
-    pivot_longer(-player.name, names_to = "variable", values_to = "value") %>%
-      na.omit()
-
-ggplot(dribble2, aes(x =reorder(player.name, value), y = value, fill=fct_rev(variable))) + 
-  geom_bar(stat="identity", colour="white")+
-  labs(title = "Dribbles", subtitle = "UCL Final 2011-12",
-  x="Players",y ='')+
-  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.ticks = element_blank(),
-  panel.background = element_rect(fill = "white", colour = "white"),
-  plot.background = element_rect(fill = "white", colour ="white"),
-  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
-  plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
-  plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
-  text=element_text(family="Source Sans Pro"),
-  legend.title=element_blank(),
-  legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  legend.position = "bottom") +
-  scale_fill_manual(values = c("red", "green"), labels = c("Unsuccessful", "Successful")) +
-  coord_flip()+ 
-  guides(fill = guide_legend(reverse = TRUE)) 
-
-```
-
-```{r}
-foulwon <- messi %>% filter(type.name == 'Foul Won' & player.name != is.na(player.name)) %>%
-  group_by(player.name) %>% 
-    summarise(n = n())
-
-foulwon
-```
-
-```{r foulwon}
-
-ggplot(foulwon, aes(x =reorder(player.name, n), y = n)) + 
-  geom_bar(stat="identity", colour="white")+
-  labs(title = "Fouls won", subtitle = "UCL Final 2011-12",
-  x="Players",y ='')+
-  theme(axis.text.y = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.title = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.text.x = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  axis.ticks = element_blank(),
-  panel.background = element_rect(fill = "white", colour = "white"),
-  plot.background = element_rect(fill = "white", colour ="white"),
-  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-  plot.title=element_text(size=24, color="#333333", family="Source Sans Pro" , face="bold"),
-  plot.subtitle=element_text(size=18, color="#333333", family="Source Sans Pro", face="bold"),
-  plot.caption=element_text(color="#333333", family="Source Sans Pro", size =10),
-  text=element_text(family="Source Sans Pro"),
-  legend.title=element_blank(),
-  legend.text = element_text(size=14, color="#333333", family="Source Sans Pro"),
-  legend.position = "bottom") +
-  coord_flip()+ 
-  guides(fill = guide_legend(reverse = TRUE)) 
-
 ```
