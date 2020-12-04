@@ -399,13 +399,13 @@ prog <- left_join(passes, shots, by = "player.name") %>% left_join(., dribble, b
 
 prog <- prog[3:5,]
 
-ggplot(data=prog, aes(x=player.name, y=progressgoalwards)) +
+ggplot(data=prog, aes(x=reorder(player.name, -progressgoalwards), y=progressgoalwards)) +
   geom_bar(stat="identity") +
   labs(title = "Forward Progress of BAR Players",
        subtitle = "Sum of progressive passes and ball carries",
        x = element_blank(),
        y = "Count") +
-  theme_classic() +s
+  theme_classic() +
   geom_label(aes(label = progressgoalwards), vjust = 0.5, position = position_dodge(0.9), color = "black", fontface = "bold", size = 4, show.legend = FALSE) +
   theme(legend.position = c(0.8, 0.7))
 
@@ -572,13 +572,13 @@ m <- createPitch(
 m
 # Radar plot for forward Barca trio ---------------------------------------------
 
-radar <- left_join(passes, shots, by = "player.name") %>% left_join(., dribble, by = "player.name") %>% na.omit()
+radar <- left_join(passes[,c(1,2,4,5,11)], shots, by = "player.name") %>% left_join(., dribble, by = "player.name") %>% left_join(., foulwon, by = "player.name")
 radar$pass_acc <- (radar$successful.x / radar$n.x) * 100
 radar$shot_acc <- ((radar$goal + radar$saved) / radar$n.y) * 100
 radar$conversion_rate <- (radar$goal / radar$n.y) * 100
-radar$dribble_rate <- (radar$successful.y / radar$n) * 100
+radar$dribble_rate <- (radar$successful.y / radar$n.x.x) * 100
 radar$forward_pass <- (radar$forward/radar$n.x) * 100
-radar2 <- radar[c(3:5),]
+radar2 <- radar[radar$player.name %in% c("David Villa", "Lionel Messi", "Pedro"),]
 
 # Construct the data set
 data <- data.frame(Pass_Accuracy = c(100, 0, radar2$pass_acc),
@@ -617,11 +617,11 @@ legend(x=1,
 
 # Radar plot for forward MU trio ---------------------------------------------
 
-radarmu <- left_join(passesmu, shotsmu, by = "player.name") %>% left_join(., dribblemu, by = "player.name")
+radarmu <- left_join(passesmu[,c(1,2,4,5,11)], shotsmu, by = "player.name") %>% left_join(., dribblemu, by = "player.name")  %>% left_join(., foulwonmu, by = "player.name")
 radarmu$pass_acc <- (radarmu$successful.x / radarmu$n.x) * 100
 radarmu$shot_acc <- ((radarmu$goal + radarmu$saved) / radarmu$n.y) * 100
 radarmu$conversion_rate <- (radarmu$goal / radarmu$n.y) * 100
-radarmu$dribble_rate <- (radarmu$successful.y / radarmu$n) * 100
+radarmu$dribble_rate <- (radarmu$successful.y / radarmu$n.x.x) * 100
 radarmu$forward_pass <- (radarmu$forward/radarmu$n.x) * 100
 radarmu2 <- radarmu[radarmu$player.name %in% c("Wayne Rooney", "Chicharito", "Nani"),]
 
@@ -844,16 +844,16 @@ ggplot() +
 
 radarvs <- rbind(radar2, radarmu2)
 radarvs2 <- melt(radarvs, id.vars = "player.name")
-barvsrm <- radarvs2[(radarvs2$player.name %in% c("Wayne Rooney", "Lionel Messi") & radarvs2$variable %in% c("n.x", "forward", "n.y", "n")),]
+barvsrm <- radarvs2[(radarvs2$player.name %in% c("Wayne Rooney", "Lionel Messi") & radarvs2$variable %in% c("n.x", "forward", "n.y", "n.x.x", "n.y.y")),]
 
 ggplot(barvsrm, aes(variable, value, fill = player.name)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(title = "Comparison of Messi and Rooney's performance in the UCL Final",
-       subtitle = "Messi performs better in every aspects",
+       subtitle = "Messi performs better in every aspects of the game",
        x = "Metrics",
        y = "Count",
        fill = "Player") +
-  scale_x_discrete(labels = c("No. Pass", "No. Forward Pass", "No. Shots", "No. Dribbles")) +
+  scale_x_discrete(labels = c("No. Pass", "No. Forward Pass", "No. Shots", "No. Dribbles", "No.Fouls Won")) +
   theme_classic() +
   geom_label(aes(label = value), vjust = 0.5, position = position_dodge(0.9), color = "black", fontface = "bold", size = 4, show.legend = FALSE) +
   theme(legend.position = c(0.8, 0.7))
